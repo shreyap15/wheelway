@@ -1,0 +1,50 @@
+.voice-alerts {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(28, 49, 36, 0.12);
+  border-radius: 12px;
+  background: rgba(28, 49, 36, 0.03);
+  font-size: 0.85rem;
+}
+
+.voice-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.voice-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.voice-test {
+  border: 1px solid rgba(28, 49, 36, 0.18);
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.voice-queue,
+.voice-status {
+  font-size: 0.76rem;
+  color: #6a7a70;
+}
+
+.voice-banner {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(232, 175, 69, 0.14);
+  border: 1px solid rgba(232, 175, 69, 0.4);
+  font-size: 0.8rem;
+}
+
+.voice-banner.voice-error {
+  background: rgba(217, 68, 68, 0.1);
+  border-color: rgba(217, 68, 68, 0.35);
+}

@@ -15,14 +15,17 @@ if str(_ACCESSROUTE_ROOT) not in sys.path:
 
 from app.api.routes import route_bp
 from app.api.real_route import real_route_bp
+from app.api.speech import speech_bp
 
 app = Flask(__name__)
 CORS(app)
 
 # /route        -> offline A* algorithm demo (synthetic Berkeley graph)
 # /real-route   -> real Mapbox walking geometry + elevation/places enrichment
+# /speak        -> Deepgram text-to-speech for voice alerts (audio/mpeg)
 app.register_blueprint(route_bp)
 app.register_blueprint(real_route_bp)
+app.register_blueprint(speech_bp)
 
 observations = []
 
