@@ -1,0 +1,15 @@
+{
+  "places": [
+    {
+      "id": "ChIJK3vOQKt-hYARFyiSDeRGx9I",
+      "displayName": {
+        "text": "Faculty Glade",
+        "languageCode": "en"
+      },
+      "location": {
+        "latitude": 37.8718,
+        "longitude": -122.2580
+      }
+    }
+  ]
+}
