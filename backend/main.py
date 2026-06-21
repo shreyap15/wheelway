@@ -1,8 +1,17 @@
 from datetime import datetime, timezone
 import random
+import sys
+from pathlib import Path
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+
+# Allow the Flask backend to reuse the sibling accessroute package (Mapbox
+# walking directions + Google elevation/places enrichment). Added once here so
+# every blueprint import resolves regardless of CWD.
+_ACCESSROUTE_ROOT = Path(__file__).resolve().parents[1] / "accessroute"
+if str(_ACCESSROUTE_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ACCESSROUTE_ROOT))
 
 from app.api.routes import route_bp
 from app.api.real_route import real_route_bp
@@ -10,6 +19,8 @@ from app.api.real_route import real_route_bp
 app = Flask(__name__)
 CORS(app)
 
+# /route        -> offline A* algorithm demo (synthetic Berkeley graph)
+# /real-route   -> real Mapbox walking geometry + elevation/places enrichment
 app.register_blueprint(route_bp)
 app.register_blueprint(real_route_bp)
 

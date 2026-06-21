@@ -3,8 +3,8 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 // REAL-ROUTE MODE — geometry comes entirely from the backend /real-route
-// endpoint (Google Routes pedestrian polyline). This component deliberately
-// does NOT import graphNodes.js; nothing here is synthetic.
+// endpoint (exact Mapbox walking-directions polyline). This component
+// deliberately does NOT import graphNodes.js; nothing here is synthetic.
 
 const API_URL = "http://127.0.0.1:5000";
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -42,6 +42,7 @@ const CV_COLORS = {
 
 // One badge per provenance source so judges can see what is real vs unavailable.
 const SOURCE_LABELS = {
+  mapbox: "Mapbox Directions",
   google_routes: "Google Routes",
   google_elevation: "Google Elevation",
   google_places: "Google Places",
@@ -392,7 +393,7 @@ export default function RealRoutePlanner() {
           </button>
 
           {status === "loading" && (
-            <div className="route-state state-loading">Calling Google Routes + Elevation + Places…</div>
+            <div className="route-state state-loading">Calling Mapbox Directions + Google Elevation + Places…</div>
           )}
           {status === "offline" && (
             <div className="route-state state-error">{errorInfo?.message}</div>
@@ -405,7 +406,7 @@ export default function RealRoutePlanner() {
           )}
           {status === "config" && (
             <div className="route-state state-error">
-              <strong>Google API not configured.</strong>
+              <strong>Routing API not configured.</strong>
               <p>{errorInfo?.message}</p>
               {errorInfo?.missing_env && (
                 <p>Missing: <code>{errorInfo.missing_env.join(", ")}</code></p>

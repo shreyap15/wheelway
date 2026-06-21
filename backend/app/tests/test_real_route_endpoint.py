@@ -1,18 +1,24 @@
 """
 WheelWay — /real-route endpoint tests.
 
-These run WITHOUT Google credentials, so they verify the honest-failure path
-(structured 503 config error, never fabricated geometry) plus request
-validation and the pure lat/lng -> GeoJSON helpers. The live-API path requires
-GOOGLE_MAPS_API_KEY and is exercised manually (see report).
+These verify the thin Flask adapter over the shared pipeline:
+  - request validation (400 validation_error),
+  - the honest-failure path with no Mapbox token (503 configuration_error,
+    never fabricated geometry),
+  - a mocked success path (200) proving the endpoint returns exact Mapbox
+    geometry as GeoJSON [lng, lat] and reuses accessroute.pipeline.
+
+All paid API calls are mocked; no network access is required.
 """
 
-import os
-
+import polyline as _polyline
 import pytest
 
 from main import app
-from app.api.real_route import latlng_pairs_to_geojson, score_real_route
+from accessroute import pipeline
+from accessroute.schemas import RouteCandidate
+
+ENCODED = _polyline.encode([(37.869, -122.259), (37.868, -122.258)])
 
 
 @pytest.fixture
@@ -20,13 +26,6 @@ def client():
     app.config["TESTING"] = True
     with app.test_client() as c:
         yield c
-
-
-@pytest.fixture(autouse=True)
-def _no_google_key(monkeypatch):
-    # Force the credentials-absent path regardless of the host environment.
-    monkeypatch.delenv("GOOGLE_MAPS_API_KEY", raising=False)
-    monkeypatch.setattr("accessroute.config.GOOGLE_MAPS_API_KEY", "", raising=False)
 
 
 VALID_BODY = {
@@ -41,12 +40,31 @@ VALID_BODY = {
 }
 
 
-def test_real_route_missing_key_returns_config_error(client):
+def _patch_mapbox(monkeypatch, candidates=None, exc=None):
+    def fake(*args, **kwargs):
+        if exc is not None:
+            raise exc
+        return candidates if candidates is not None else [
+            RouteCandidate(
+                route_index=0,
+                encoded_polyline=ENCODED,
+                distance_meters=300.0,
+                duration_seconds=240.0,
+                num_steps=2,
+                travel_mode="WALK",
+            )
+        ]
+
+    monkeypatch.setattr(pipeline, "compute_mapbox_routes", fake)
+
+
+def test_real_route_missing_mapbox_token_returns_config_error(client, monkeypatch):
+    monkeypatch.setattr(pipeline, "MAPBOX_ACCESS_TOKEN", "", raising=False)
     resp = client.post("/real-route", json=VALID_BODY)
     assert resp.status_code == 503
     body = resp.get_json()
     assert body["error"] == "configuration_error"
-    assert "GOOGLE_MAPS_API_KEY" in body["missing_env"]
+    assert "MAPBOX_ACCESS_TOKEN" in body["missing_env"]
     # Must not fabricate any geometry on the failure path.
     assert "routes" not in body
 
@@ -54,27 +72,49 @@ def test_real_route_missing_key_returns_config_error(client):
 def test_real_route_invalid_body_is_400(client):
     resp = client.post("/real-route", json={"origin": {"latitude": 37.0}})
     assert resp.status_code == 400
-    assert resp.get_json()["error"] == "Invalid request"
+    assert resp.get_json()["error"] == "validation_error"
 
 
 def test_real_route_no_json_is_400(client):
     resp = client.post("/real-route", data="nope", content_type="text/plain")
     assert resp.status_code == 400
+    assert resp.get_json()["error"] == "validation_error"
 
 
-def test_latlng_pairs_to_geojson_uses_lng_lat_order():
-    # Decoded polyline is (lat, lng); GeoJSON must be [lng, lat].
-    geo = latlng_pairs_to_geojson([(37.869, -122.259), (37.868, -122.258)])
-    assert geo["type"] == "LineString"
-    assert geo["coordinates"] == [[-122.259, 37.869], [-122.258, 37.868]]
-    # longitude first, latitude second
-    for lng, lat in geo["coordinates"]:
-        assert -123 < lng < -122
-        assert 37 < lat < 38
+def test_real_route_success_returns_mapbox_geojson(client, monkeypatch):
+    """Mapbox token present, Google enrichment absent -> exact geometry, 200."""
+    monkeypatch.setattr(pipeline, "MAPBOX_ACCESS_TOKEN", "test-token", raising=False)
+    monkeypatch.setattr(pipeline, "GOOGLE_MAPS_API_KEY", "", raising=False)
+    _patch_mapbox(monkeypatch)
+
+    resp = client.post("/real-route", json=VALID_BODY)
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["mode"] == "real_route"
+    route = data["routes"][0]
+    # Geometry is the exact decoded Mapbox polyline in [lng, lat] order.
+    assert route["geometry"]["type"] == "LineString"
+    assert route["geometry"]["coordinates"] == [[-122.259, 37.869], [-122.258, 37.868]]
+    assert route["sources"]["geometry"] == "mapbox"
+    assert route["stairs_detected"] is None
+    # No Google key -> slope unavailable, but geometry is real (not fabricated).
+    assert route["max_slope_pct"] is None
 
 
-def test_score_real_route_monotonic():
-    flat = score_real_route(2.0, exceeds_limit=False, num_steep_sections=0)
-    steep = score_real_route(15.0, exceeds_limit=True, num_steep_sections=4)
-    assert flat == 100.0
-    assert 0.0 <= steep < flat
+def test_real_route_no_route_is_404(client, monkeypatch):
+    monkeypatch.setattr(pipeline, "MAPBOX_ACCESS_TOKEN", "test-token", raising=False)
+    _patch_mapbox(
+        monkeypatch,
+        exc=pipeline.ServiceDegraded("Mapbox Directions returned no usable route geometry"),
+    )
+    resp = client.post("/real-route", json=VALID_BODY)
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "no_route"
+
+
+def test_real_route_routing_unavailable_is_502(client, monkeypatch):
+    monkeypatch.setattr(pipeline, "MAPBOX_ACCESS_TOKEN", "test-token", raising=False)
+    _patch_mapbox(monkeypatch, exc=pipeline.ServiceDegraded("Mapbox Directions HTTP 500"))
+    resp = client.post("/real-route", json=VALID_BODY)
+    assert resp.status_code == 502
+    assert resp.get_json()["error"] == "routing_unavailable"
