@@ -30,7 +30,12 @@ from accessroute.addresses import (
     PLACES_AGENT_ADDRESS,
     ROUTE_AGENT_ADDRESS,
 )
-from accessroute.config import ASI_ONE_API_KEY, ORCHESTRATOR
+from accessroute.config import ASI_ONE_API_KEY, GOOGLE_MAPS_API_KEY, ORCHESTRATOR
+from accessroute.elevation_service import (
+    ServiceDegraded,
+    check_route_elevation_async,
+    degraded_elevation_verdict,
+)
 from accessroute.llm import synthesize_directions
 from accessroute.schemas import (
     AccessibilityCheckRequest,
@@ -163,6 +168,38 @@ async def _fetch_elevation(ctx: Context, session_id, candidate, profile):
         distance_meters=candidate.distance_meters,
         profile=profile_data,
     )
+
+    _, _, parsed_elevation = parse_identifier(ELEVATION_AGENT_ADDRESS)
+    if dispatcher.contains(parsed_elevation):
+        try:
+            verdict = await check_route_elevation_async(req, GOOGLE_MAPS_API_KEY)
+            ctx.logger.info(
+                "Local elevation route=%s compliant=%s max_grade=%.2f%%",
+                verdict.route_index,
+                verdict.is_route_compliant,
+                verdict.max_grade_percentage,
+            )
+            warning = None
+            if verdict.service_degraded:
+                warning = f"Elevation data degraded for route {candidate.route_index}."
+            return verdict, warning
+        except ServiceDegraded as exc:
+            logger.warning(
+                "Elevation API degraded for route %d: %s",
+                candidate.route_index,
+                exc,
+            )
+            return degraded_elevation_verdict(req), (
+                f"Elevation data degraded for route {candidate.route_index}."
+            )
+        except Exception as exc:
+            logger.error(
+                "Local elevation error for route %d: %s",
+                candidate.route_index,
+                exc,
+            )
+            return None, f"Elevation check failed for route {candidate.route_index}: {exc}"
+
     try:
         reply, _status = await _send_and_receive_untyped(
             ctx, ELEVATION_AGENT_ADDRESS, req, timeout=ELEVATION_REQUEST_TIMEOUT
@@ -170,6 +207,14 @@ async def _fetch_elevation(ctx: Context, session_id, candidate, profile):
     except Exception as exc:
         logger.error("Elevation agent error for route %d: %s", candidate.route_index, exc)
         return None, f"Elevation check failed for route {candidate.route_index}: {exc}"
+
+    if reply is None:
+        logger.error(
+            "Elevation agent returned no reply for route %d (status=%s)",
+            candidate.route_index,
+            getattr(_status, "detail", _status),
+        )
+        return None, f"Elevation check failed for route {candidate.route_index}: no reply"
 
     if not hasattr(reply, "is_route_compliant") and not isinstance(reply, dict):
         return None, f"Elevation agent returned unexpected type for route {candidate.route_index}."
@@ -182,7 +227,15 @@ async def _fetch_elevation(ctx: Context, session_id, candidate, profile):
     )
     if service_degraded:
         warning = f"Elevation data degraded for route {candidate.route_index}."
-    return _coerce_elevation_verdict(reply), warning
+    verdict = _coerce_elevation_verdict(reply)
+    if verdict is not None:
+        ctx.logger.info(
+            "Remote elevation route=%s compliant=%s max_grade=%.2f%%",
+            getattr(verdict, "route_index", None),
+            getattr(verdict, "is_route_compliant", None),
+            getattr(verdict, "max_grade_percentage", 0.0),
+        )
+    return verdict, warning
 
 
 async def _fetch_accessibility(ctx: Context, session_id, destination):
@@ -209,11 +262,7 @@ async def _fetch_accessibility(ctx: Context, session_id, destination):
 
 
 async def _run_elevation_and_accessibility(ctx, session_id, candidates, profile, destination):
-    """Run elevation checks sequentially and accessibility check in parallel.
-
-    uAgents pending-response slots are keyed by (sender, destination, session),
-    so concurrent send_and_receive calls to the same agent overwrite each other
-    and cause spurious timeouts. Elevation checks are therefore serialized.
+    """Run elevation checks sequentially, then the accessibility check.
 
     Returns:
         (verdicts: list[ElevationVerdict], accessibility: AccessibilityVerdict | None,
@@ -221,18 +270,14 @@ async def _run_elevation_and_accessibility(ctx, session_id, candidates, profile,
     """
     warnings = []
     any_degraded = False
-
-    accessibility_task = asyncio.create_task(
-        _fetch_accessibility(ctx, session_id, destination)
-    )
-
     elevation_results = []
+
     for candidate in candidates:
         elevation_results.append(
             await _fetch_elevation(ctx, session_id, candidate, profile)
         )
 
-    accessibility, acc_warning = await accessibility_task
+    accessibility, acc_warning = await _fetch_accessibility(ctx, session_id, destination)
 
     verdicts = []
     for elev_verdict, elev_warning in elevation_results:
@@ -303,6 +348,21 @@ async def handle_evaluation_request(ctx: Context, sender: str, msg: RouteEvaluat
         any_degraded = True
 
     # ---- Step 3: Choose best route ----
+    if verdicts:
+        ctx.logger.info(
+            "Elevation summary: %s",
+            [
+                (
+                    getattr(v, "route_index", None),
+                    getattr(v, "is_route_compliant", None),
+                    round(getattr(v, "max_grade_percentage", 0.0), 2),
+                )
+                for v in verdicts
+            ],
+        )
+    else:
+        ctx.logger.warning("No elevation verdicts received for %d candidates", len(candidates))
+
     best_idx = choose_best(candidates, verdicts)
 
     # ---- Step 4: TRANSIT fallback if no compliant WALK routes ----
