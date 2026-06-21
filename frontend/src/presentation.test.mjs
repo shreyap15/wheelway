@@ -24,6 +24,12 @@ test("diagnostics are hidden by default, enabled only by its flag", () => {
   assert.equal(diagnosticsVisible({ VITE_SHOW_DIAGNOSTICS: "true" }), true);
 });
 
+test("App mounts the live camera obstacle-detection status in the presentation UI", () => {
+  const app = read("App.jsx");
+  assert.match(app, /<VisionStatus observations=\{observations\} \/>/);
+  assert.match(app, /import VisionStatus from "\.\/components\/VisionStatus"/);
+});
+
 test("App defaults to real mode and gates synthetic behind the flag + lazy load", () => {
   const app = read("App.jsx");
   // Real route is the default mode.

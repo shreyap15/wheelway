@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import "./App.css";
 import RealRoutePlanner from "./RealRoutePlanner";
 import VoiceAlerts from "./components/VoiceAlerts";
+import VisionStatus from "./components/VisionStatus";
 import SponsorDiagnostics from "./components/SponsorDiagnostics";
 import {
   REAL_MODE_LABEL,
@@ -154,7 +155,10 @@ function App() {
         <RealRoutePlanner />
       )}
 
-      {/* Voice alerts: only real mode emits route voice triggers. */}
+      {/* Live camera obstacle-detection status + hazard banner (vision_modal). */}
+      <VisionStatus observations={observations} />
+
+      {/* Voice alerts: real-route and camera hazards both emit voice triggers. */}
       <VoiceAlerts />
 
       <section className="dashboard-grid">

@@ -19,7 +19,12 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Protocol
 
 # --- Alert contract --- #
-ALERT_TYPES = {"reroute", "steep_slope", "stairs", "no_compliant_route", "destination", "degraded"}
+# Route-planning alert types plus camera (vision_modal) reactive-hazard types.
+ALERT_TYPES = {
+    "reroute", "steep_slope", "stairs", "no_compliant_route", "destination", "degraded",
+    # Camera obstacle-detection (vision_modal) reactive hazards.
+    "collision_risk", "avoid_left", "avoid_right", "vision_offline",
+}
 ALERT_PRIORITIES = {"info", "warning", "critical"}
 
 # Event types appended to the durable log.
@@ -28,7 +33,10 @@ EVENT_ROUTE_SELECTED = "route.selected"
 EVENT_ALERT_CREATED = "alert.created"
 
 # Alert types that may be auto-spoken (everything else is text-only).
-AUTO_SPEAK_TYPES = {"no_compliant_route", "stairs", "steep_slope", "reroute"}
+AUTO_SPEAK_TYPES = {
+    "no_compliant_route", "stairs", "steep_slope", "reroute",
+    "collision_risk", "avoid_left", "avoid_right", "vision_offline",
+}
 
 
 def _now_iso() -> str:

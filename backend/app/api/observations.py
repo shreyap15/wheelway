@@ -12,8 +12,9 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
+from app.models import vision
 from app.models.observations import make_observation
-from app.services import state_store
+from app.services import state_store, vision_service
 
 observations_bp = Blueprint("observations", __name__)
 
@@ -23,8 +24,22 @@ def receive_observation():
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Missing JSON body"}), 400
-    obs = make_observation(data)
+    try:
+        obs = make_observation(data)
+    except ValueError as exc:
+        # vision_modal contract violation -> structured 400 (other sources never raise).
+        return jsonify({"error": "validation_error", "message": str(exc)}), 400
+
     state_store.save_observation(obs)
+
+    # Camera hazards: store the full observation, derive a concise deduped alert.
+    if vision.is_vision_observation(obs):
+        enrichment = vision_service.ingest_vision_observation(obs)
+        body = dict(obs)
+        body["alert"] = enrichment["alert"]
+        body["auto_speak"] = enrichment["auto_speak"]
+        return jsonify(body), 201
+
     return jsonify(obs), 201
 
 

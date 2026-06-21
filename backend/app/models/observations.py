@@ -10,6 +10,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
+from app.models import vision
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -19,9 +21,13 @@ def make_observation(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Return a normalized observation dict with a stable id + timestamp.
 
     Preserves every field the caller supplied (current contract) and only fills
-    ``id`` and ``timestamp`` when missing.
+    ``id`` and ``timestamp`` when missing. ``source=vision_modal`` observations
+    are additionally validated/normalized (raises ValueError on bad input);
+    other sources are untouched for backward compatibility.
     """
     obs = dict(data or {})
+    if vision.is_vision_observation(obs):
+        obs = vision.normalize_vision_observation(obs)
     obs.setdefault("id", uuid.uuid4().hex)
     obs.setdefault("timestamp", _now_iso())
     return obs
