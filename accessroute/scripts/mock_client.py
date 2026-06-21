@@ -16,11 +16,11 @@ ensure_project_root()
 from uagents import Agent, Context
 
 from accessroute.addresses import ORCHESTRATOR_ADDRESS
+from accessroute.config import demo_wheelchair_profile
 from accessroute.schemas import (
     FinalRoute,
     LatLng,
     RouteEvaluationRequest,
-    WheelchairProfile,
 )
 
 # Client agent (ephemeral, no fixed port needed)
@@ -42,7 +42,7 @@ async def send_request(ctx: Context):
         session_id="mock-session-001",
         origin=LatLng(lat=37.8715, lng=-122.2595),
         destination=LatLng(lat=37.8756, lng=-122.2588),
-        profile=WheelchairProfile(device_type="power"),
+        profile=demo_wheelchair_profile(device_type="power"),
         travel_mode="WALK",
     )
 

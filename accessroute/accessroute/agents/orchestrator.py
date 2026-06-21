@@ -6,10 +6,8 @@ directions via LLM, and returns a FinalRoute.
 
 Message flow:
     Client -> Orchestrator: RouteEvaluationRequest
-    Orchestrator -> RouteAgent: RouteEvaluationRequest
-    RouteAgent -> Orchestrator: RouteCandidates
-    Orchestrator -> ElevationAgent: ElevationCheckRequest (per candidate)
-    ElevationAgent -> Orchestrator: ElevationVerdict (per candidate)
+    Orchestrator: Mapbox walking directions (in-process)
+    Orchestrator: Google Elevation sampling (in-process via check_route_elevation_async)
     Orchestrator -> PlacesAgent: AccessibilityCheckRequest
     PlacesAgent -> Orchestrator: AccessibilityVerdict
     Orchestrator -> Client: FinalRoute
@@ -28,15 +26,18 @@ from uagents_core.types import DeliveryStatus, MsgStatus
 from accessroute.addresses import (
     ELEVATION_AGENT_ADDRESS,
     PLACES_AGENT_ADDRESS,
-    ROUTE_AGENT_ADDRESS,
 )
-from accessroute.config import ASI_ONE_API_KEY, GOOGLE_MAPS_API_KEY, ORCHESTRATOR
+from accessroute.config import ASI_ONE_API_KEY, GOOGLE_MAPS_API_KEY, MAPBOX_ACCESS_TOKEN, ORCHESTRATOR
 from accessroute.elevation_service import (
     ServiceDegraded,
     check_route_elevation_async,
     degraded_elevation_verdict,
 )
 from accessroute.llm import synthesize_directions
+from accessroute.route_service import (
+    degraded_route_candidates,
+    fetch_route_candidates_async,
+)
 from accessroute.schemas import (
     AccessibilityCheckRequest,
     AccessibilityVerdict,
@@ -116,26 +117,37 @@ async def on_startup(ctx: Context):
 # ---------------------------------------------------------------------------
 
 async def _fetch_candidates(ctx: Context, msg: RouteEvaluationRequest):
-    """Send the evaluation request to the route agent and return RouteCandidates.
+    """Fetch Mapbox walking route candidates in-process.
 
     Returns:
         (RouteCandidates | None, service_degraded: bool, warning: str | None)
     """
     try:
-        route_reply, _status = await ctx.send_and_receive(
-            ROUTE_AGENT_ADDRESS, msg, response_type=RouteCandidates
+        route_candidates = await fetch_route_candidates_async(
+            msg, MAPBOX_ACCESS_TOKEN
         )
-    except Exception as exc:
-        logger.error("Route agent communication failed: %s", exc)
-        return None, True, f"Route agent error: {exc}"
+    except ServiceDegraded as exc:
+        logger.warning("Mapbox routing degraded for session %s: %s", msg.session_id, exc)
+        return degraded_route_candidates(msg), True, f"Route service returned degraded results: {exc}"
 
-    if not isinstance(route_reply, RouteCandidates):
-        return None, True, "Route agent returned unexpected response type."
+    if route_candidates.service_degraded or not route_candidates.candidates:
+        return route_candidates, True, "Route service returned no Mapbox walking candidates."
 
-    if route_reply.service_degraded:
-        return route_reply, True, "Route service returned degraded results."
+    ctx.logger.info(
+        "Mapbox returned %d walking candidate(s) for session %s",
+        len(route_candidates.candidates),
+        msg.session_id,
+    )
+    for candidate in route_candidates.candidates:
+        ctx.logger.info(
+            "  route_index=%s distance=%.0fm duration=%.0fs polyline_len=%d",
+            candidate.route_index,
+            candidate.distance_meters,
+            candidate.duration_seconds,
+            len(candidate.encoded_polyline),
+        )
 
-    return route_reply, False, None
+    return route_candidates, False, None
 
 
 def _coerce_elevation_verdict(reply):
@@ -307,11 +319,10 @@ async def handle_evaluation_request(ctx: Context, sender: str, msg: RouteEvaluat
     """Handle a route evaluation request from the client.
 
     Pipeline:
-        1. Forward request to route agent, await RouteCandidates.
-        2. For each candidate, send ElevationCheckRequest to elevation agent
-           concurrently, plus one AccessibilityCheckRequest to places agent.
-        3. Score and select the best compliant route via scoring module.
-        4. If no compliant WALK routes, try TRANSIT fallback.
+        1. Fetch Mapbox walking route candidates in-process.
+        2. Grade each candidate via check_route_elevation_async (Google Elevation).
+        3. Check destination accessibility via places agent.
+        4. Score and select the best compliant route via scoring module.
         5. Synthesize human-readable directions via LLM.
         6. Reply to the client with FinalRoute.
     """
@@ -365,54 +376,24 @@ async def handle_evaluation_request(ctx: Context, sender: str, msg: RouteEvaluat
 
     best_idx = choose_best(candidates, verdicts)
 
-    # ---- Step 4: TRANSIT fallback if no compliant WALK routes ----
-    if best_idx is None and msg.travel_mode == "WALK":
-        ctx.logger.info("No compliant WALK routes; attempting TRANSIT fallback.")
-        transit_msg = RouteEvaluationRequest(
-            session_id=msg.session_id,
-            origin=msg.origin,
-            destination=msg.destination,
-            profile=msg.profile,
-            travel_mode="TRANSIT",
-        )
-        transit_candidates_result, t_degraded, t_warning = await _fetch_candidates(ctx, transit_msg)
-        if t_warning:
-            warnings.append(t_warning)
-        if t_degraded:
-            any_degraded = True
-
-        if transit_candidates_result is not None and transit_candidates_result.candidates:
-            t_verdicts, t_accessibility, t_warnings, t_deg = (
-                await _run_elevation_and_accessibility(
-                    ctx, msg.session_id, transit_candidates_result.candidates,
-                    msg.profile, msg.destination
-                )
-            )
-            warnings.extend(t_warnings)
-            if t_deg:
-                any_degraded = True
-
-            t_best_idx = choose_best(transit_candidates_result.candidates, t_verdicts)
-            if t_best_idx is not None:
-                warnings.append(
-                    "No wheelchair-accessible walking route was found. "
-                    "A transit route has been selected as a fallback."
-                )
-                best_idx = t_best_idx
-                candidates = transit_candidates_result.candidates
-                verdicts = t_verdicts
-                # Use transit accessibility if original was unavailable
-                if t_accessibility is not None:
-                    accessibility = t_accessibility
-
-    # ---- No compliant route at all ----
+    # ---- No compliant route among Mapbox walking alternatives ----
     if best_idx is None:
+        peak_grades = [
+            round(getattr(v, "max_grade_percentage", 0.0), 2)
+            for v in verdicts
+            if getattr(v, "max_grade_percentage", None) is not None
+        ]
+        if peak_grades:
+            warnings.append(
+                "All Mapbox walking alternatives exceeded the wheelchair grade limits "
+                f"(peak grades: {', '.join(f'{g}%' for g in peak_grades)})."
+            )
         await ctx.send(sender, FinalRoute(
             session_id=msg.session_id,
             success=False,
             directions_prose=(
                 "No wheelchair-accessible route could be found for this "
-                "origin and destination. All candidate routes exceed the "
+                "origin and destination. All Mapbox walking alternatives exceed the "
                 "maximum grade limits in your wheelchair profile."
             ),
             warnings=warnings,
@@ -420,7 +401,7 @@ async def handle_evaluation_request(ctx: Context, sender: str, msg: RouteEvaluat
         ))
         return
 
-    # ---- Step 5: Process accessibility warnings ----
+    # ---- Process accessibility warnings ----
     # Build a default accessibility if the places agent failed entirely
     if accessibility is None:
         accessibility = AccessibilityVerdict(

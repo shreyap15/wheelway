@@ -59,7 +59,7 @@ class RouteEvaluationRequest(Model):
     profile: WheelchairProfile
     travel_mode: str = Field(
         default="WALK",
-        description="Google Routes API travel mode: 'WALK' or 'TRANSIT'.",
+        description="Preferred travel mode. Route candidates are sourced from Mapbox walking directions.",
     )
 
 
@@ -75,9 +75,15 @@ class SegmentElevationReport(Model):
 
 
 class RouteCandidate(Model):
-    """A single route option returned by the Google Routes API."""
+    """A single route option returned by the Mapbox Directions API."""
     route_index: int
-    encoded_polyline: str
+    encoded_polyline: str = Field(
+        ...,
+        description=(
+            "Google-standard precision-5 encoded polyline (lat,lng) derived from "
+            "Mapbox GeoJSON walking geometry for elevation sampling."
+        ),
+    )
     distance_meters: float
     duration_seconds: float
     num_steps: int
@@ -85,7 +91,7 @@ class RouteCandidate(Model):
 
 
 class RouteCandidates(Model):
-    """Collection of route candidates from the route agent to the orchestrator."""
+    """Collection of Mapbox walking route candidates for the orchestrator."""
     session_id: str
     candidates: List[RouteCandidate]
     travel_mode: str
@@ -101,7 +107,10 @@ class ElevationCheckRequest(Model):
 
     session_id: str
     route_index: int
-    encoded_polyline: str
+    encoded_polyline: str = Field(
+        ...,
+        description="Google-standard encoded polyline from Mapbox walking geometry.",
+    )
     distance_meters: float
     profile: Dict[str, Any]
 
