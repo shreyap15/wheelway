@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
+import RoutePlanner from "./RoutePlanner";
+import RealRoutePlanner from "./RealRoutePlanner";
 
 const API_URL = "http://127.0.0.1:5000";
 
@@ -8,6 +10,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [backendOnline, setBackendOnline] = useState(false);
   const [error, setError] = useState("");
+  // "real" = API-derived geometry; "demo" = synthetic A* prototype.
+  const [routeMode, setRouteMode] = useState("real");
 
   const latestObservation =
     observations.length > 0
@@ -173,6 +177,25 @@ function App() {
           This button temporarily acts like the Raspberry Pi.
         </p>
       </section>
+
+      <section className="mode-switch">
+        <button
+          className={routeMode === "real" ? "active" : ""}
+          onClick={() => setRouteMode("real")}
+        >
+          Real route mode
+          <span>API-derived pedestrian geometry</span>
+        </button>
+        <button
+          className={routeMode === "demo" ? "active" : ""}
+          onClick={() => setRouteMode("demo")}
+        >
+          Accessibility algorithm demo
+          <span>Synthetic A* graph — not a real Berkeley network</span>
+        </button>
+      </section>
+
+      {routeMode === "real" ? <RealRoutePlanner /> : <RoutePlanner />}
 
       <section className="history-section">
         <div className="section-heading">

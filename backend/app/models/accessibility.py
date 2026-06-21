@@ -13,7 +13,7 @@ References used to set thresholds (see scoring/constants.py for citations):
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -52,6 +52,20 @@ class WheelchairType(str, Enum):
     WALKER = "walker"
 
 
+class LineStringGeometry(BaseModel):
+    """
+    GeoJSON LineString geometry for a segment's *drawn shape* (the polyline a
+    map should render), as opposed to its node endpoints. Coordinates are
+    GeoJSON order: [longitude, latitude]. Lets a sidewalk bend/curve along the
+    real path instead of being a straight line between two intersections.
+    """
+
+    type: Literal["LineString"] = "LineString"
+    coordinates: list[list[float]] = Field(
+        ..., description="Ordered [lon, lat] vertices, start -> end (>= 2 points)"
+    )
+
+
 class Segment(BaseModel):
     """
     A single traversable edge in the accessibility graph (e.g. one block of
@@ -63,6 +77,13 @@ class Segment(BaseModel):
     end_node_id: str
 
     length_m: float = Field(..., gt=0, description="Segment length in meters")
+
+    # --- Drawn shape ---
+    geometry: Optional[LineStringGeometry] = Field(
+        None,
+        description="GeoJSON LineString tracing the segment's real path for map "
+        "rendering. Optional: falls back to a straight node-to-node line if absent.",
+    )
 
     # --- Physical geometry ---
     slope: float = Field(

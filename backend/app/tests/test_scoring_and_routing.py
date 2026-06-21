@@ -162,35 +162,39 @@ def test_router_avoids_stairs_on_mock_graph():
     graph = build_mock_graph()
     profile = UserMobilityProfile()  # avoid_stairs=True by default
 
-    result = find_accessible_route(graph, "A1", "D2", profile)
+    result = find_accessible_route(graph, "sproul_plaza", "student_union", profile)
     assert result.found, result.failure_reason
 
     used_segment_ids = {s.segment.segment_id for s in result.steps}
-    assert "C1_C2" not in used_segment_ids and "C2_C1_rev" not in used_segment_ids, (
-        "router should never route through the stairs segment for a wheelchair profile"
-    )
+    assert (
+        "sproul_plaza__student_union" not in used_segment_ids
+        and "sproul_plaza__student_union_rev" not in used_segment_ids
+    ), "router should never route through the stairs segment for a wheelchair profile"
 
 
 def test_router_avoids_steep_hill_for_manual_chair():
     graph = build_mock_graph()
     profile = UserMobilityProfile(wheelchair_type=WheelchairType.MANUAL)  # default max_slope 8.33
 
-    result = find_accessible_route(graph, "B1", "B4", profile)
+    result = find_accessible_route(graph, "student_union", "eshleman", profile)
     assert result.found, result.failure_reason
     used_ids = {s.segment.segment_id for s in result.steps}
-    assert "B2_B3" not in used_ids, "11.5% slope exceeds manual chair max, must be avoided"
+    assert (
+        "student_union__eshleman" not in used_ids
+        and "student_union__eshleman_rev" not in used_ids
+    ), "10.5% slope exceeds manual chair max, must be avoided"
 
 
 def test_router_prefers_accessible_over_shortest_when_alternative_exists():
     graph = build_mock_graph()
     profile = UserMobilityProfile()
 
-    result = find_accessible_route(graph, "A1", "A4", profile)
+    result = find_accessible_route(graph, "eshleman", "zellerbach", profile)
     assert result.found
-    # A3_A4 has a near-blocking obstruction; router should detour via row B
-    # rather than barrel through it, given the cost penalty (not a hard
-    # disqualification in this case since clearance 0.5m doesn't always
-    # violate every profile's min width, so we just check the route is sane).
+    # eshleman__zellerbach has a near-blocking construction obstruction; given
+    # the cost penalty the router may detour via bancroft_dana rather than
+    # barrel through it. Not a hard disqualification (0.6m clearance), so we
+    # just check the route is sane.
     assert result.average_accessibility_score > 0
 
 
@@ -207,7 +211,7 @@ def test_no_route_when_all_paths_disqualified():
 
 def test_route_result_includes_per_segment_scores_for_explanation_layer():
     graph = build_mock_graph()
-    result = find_accessible_route(graph, "A1", "B1")
+    result = find_accessible_route(graph, "sather_gate", "lower_sproul")
     assert result.found
     for step in result.steps:
         assert 0 <= step.accessibility_score <= 100

@@ -55,12 +55,18 @@ class AccessibilityGraph:
         self._adjacency[segment.start_node_id].append((segment.end_node_id, segment))
 
         if bidirectional:
+            reversed_geometry = None
+            if segment.geometry is not None:
+                reversed_geometry = segment.geometry.model_copy(
+                    update={"coordinates": list(reversed(segment.geometry.coordinates))}
+                )
             reversed_segment = segment.model_copy(
                 update={
                     "segment_id": segment.segment_id + "_rev",
                     "start_node_id": segment.end_node_id,
                     "end_node_id": segment.start_node_id,
                     "slope": -segment.slope,
+                    "geometry": reversed_geometry,
                 }
             )
             self._segments_by_id[reversed_segment.segment_id] = reversed_segment
