@@ -58,6 +58,27 @@ Coordinates are `[longitude, latitude]` or `[longitude, latitude, elevationM]`.
 If elevation is absent, the frontend queries unexaggerated Mapbox terrain. If
 both are absent, it falls back to zero elevation.
 
+Broad graph nodes must be converted into dense infrastructure-following
+geometry before rendering. This branch provides both frontend and backend
+helpers named `snapRouteToStreets` / `snap_segments_to_streets` that:
+
+1. Take each broad segment's first and last coordinate by default.
+2. Request `mapbox/walking` Directions geometry (`overview=full`,
+   `geometries=geojson`) when a Mapbox token is available.
+3. Preserve the returned dense GeoJSON LineString.
+4. Interpolate Z values along cumulative route distance.
+5. Return both backend-compatible `geometry.coordinates` and mesh-friendly
+   `coordinates: [[lng, lat, z], ...]`.
+
+Backend route endpoints support:
+
+- `?snap=true|false` (default `true`)
+- `?profile=walking|driving|cycling` (aliases such as `pedestrian` and
+  `vehicle` are normalized)
+- `?mode=directions|matching`
+- `?waypoints=endpoints|all` (default `endpoints`; use `all` for trace-style
+  map matching/waypoint preservation)
+
 ## Segment model
 
 The existing `Segment` model keeps its scoring fields and adds:

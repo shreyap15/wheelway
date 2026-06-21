@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from app.data.mock_graph import build_mock_graph
 from app.models.accessibility import RouteRequest, UserMobilityProfile
 from app.routing.astar import find_accessible_route
+from app.services.route_geometry import snap_segments_to_streets
 
 app = Flask(__name__)
 CORS(app)
@@ -16,7 +17,24 @@ observations = []
 route_graph = build_mock_graph()
 
 
-def route_result_payload(result):
+def _should_snap_routes() -> bool:
+    value = request.args.get("snap", "true").lower()
+    return value not in {"0", "false", "no", "off"}
+
+
+def _use_intermediate_waypoints() -> bool:
+    value = request.args.get("waypoints", "endpoints").lower()
+    return value in {"all", "intermediate", "trace"}
+
+
+def route_result_payload(
+    result,
+    *,
+    snap_to_streets: bool = True,
+    profile: str = "walking",
+    mode: str = "directions",
+    use_intermediate_waypoints: bool = False,
+):
     segments = []
 
     for step in result.steps:
@@ -26,14 +44,33 @@ def route_result_payload(result):
         segment["cumulative_cost"] = step.cumulative_cost
         segments.append(segment)
 
+    if snap_to_streets:
+        segments = snap_segments_to_streets(
+            segments,
+            profile=profile,
+            mode=mode,
+            use_intermediate_waypoints=use_intermediate_waypoints,
+        )
+
+    total_distance_m = (
+        round(segments[-1]["cumulative_distance_m"], 1)
+        if segments
+        else result.total_distance_m
+    )
+
     return {
         "found": result.found,
         "segments": segments,
-        "total_distance_m": result.total_distance_m,
+        "total_distance_m": total_distance_m,
         "total_cost": result.total_cost,
         "average_accessibility_score": result.average_accessibility_score,
         "nodes_expanded": result.nodes_expanded,
         "failure_reason": result.failure_reason,
+        "snapping": {
+            "snapped": any(segment.get("snapping", {}).get("snapped") for segment in segments),
+            "mode": mode,
+            "profile": profile,
+        },
     }
 
 
@@ -53,7 +90,15 @@ def health():
 @app.get("/routes/demo")
 def get_demo_route():
     result = find_accessible_route(route_graph, "A1", "D2", UserMobilityProfile())
-    return jsonify(route_result_payload(result))
+    return jsonify(
+        route_result_payload(
+            result,
+            snap_to_streets=_should_snap_routes(),
+            profile=request.args.get("profile", "walking"),
+            mode=request.args.get("mode", "directions"),
+            use_intermediate_waypoints=_use_intermediate_waypoints(),
+        )
+    )
 
 
 @app.post("/routes/accessible")
@@ -73,7 +118,15 @@ def get_accessible_route():
     )
 
     status = 200 if result.found else 404
-    return jsonify(route_result_payload(result)), status
+    return jsonify(
+        route_result_payload(
+            result,
+            snap_to_streets=_should_snap_routes(),
+            profile=request.args.get("profile", "walking"),
+            mode=request.args.get("mode", "directions"),
+            use_intermediate_waypoints=_use_intermediate_waypoints(),
+        )
+    ), status
 
 
 @app.post("/simulate")

@@ -25,7 +25,10 @@ function routeStats(routeSegments, sampledRoute) {
 
 function ValidationBadge({ routeSegments, sampledRoute }) {
   const hasGeometry = routeSegments.every(
-    (segment) => segment.geometry?.type === "LineString" && segment.geometry.coordinates?.length >= 2,
+    (segment) =>
+      (segment.geometry?.type === "LineString" &&
+        segment.geometry.coordinates?.length >= 2) ||
+      segment.coordinates?.length >= 2,
   );
   const hasZ = sampledRoute.some((sample) => sample.elevationM !== null);
   const hasMeasuredOffsets = sampledRoute.some(
@@ -91,6 +94,13 @@ export default function TopographicalAccessibilityMap({
             ? ` | ${stats.averageScore.toFixed(1)}/100 average accessibility`
             : ""}
         </p>
+        {routeSummary?.snapping && (
+          <p className="route-snapping-status">
+            {routeSummary.snapping.snapped
+              ? `Snapped to Mapbox ${routeSummary.snapping.profile} network`
+              : "Using fallback route geometry"}
+          </p>
+        )}
         {routeSummary?.failure_reason && (
           <p className="route-warning">{routeSummary.failure_reason}</p>
         )}

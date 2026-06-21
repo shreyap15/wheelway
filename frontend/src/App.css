@@ -124,6 +124,13 @@ p {
   color: #ffd38a;
 }
 
+.route-snapping-status {
+  margin: 12px 0 0;
+  color: #8dd9ff;
+  font-size: 0.88rem;
+  font-weight: 750;
+}
+
 .route-legend {
   top: 22px;
   right: 86px;

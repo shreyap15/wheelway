@@ -75,7 +75,7 @@ export function flattenOrderedRoute(routeSegments = []) {
   let cumulativeDistanceM = 0;
 
   routeSegments.forEach((segment, segmentIndex) => {
-    const coordinates = segment?.geometry?.coordinates ?? [];
+    const coordinates = segment?.geometry?.coordinates ?? segment?.coordinates ?? [];
 
     coordinates.forEach((coordinate, coordinateIndex) => {
       const point = {
@@ -285,7 +285,10 @@ export function buildRibbonVertices(
       east: direction.north,
       north: -direction.east,
     };
-    const crossSlopePct = toFiniteNumber(point.segment?.cross_slope, 0);
+    const crossSlopePct = toFiniteNumber(
+      point.segment?.cross_slope ?? point.segment?.crossSlopePct,
+      0,
+    );
     const crossSlopeRiseM = (widthM * crossSlopePct) / 100;
     const leftRiseM = crossSlopeRiseM / 2;
     const rightRiseM = -crossSlopeRiseM / 2;
