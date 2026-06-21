@@ -1,8 +1,18 @@
 from datetime import datetime, timezone
 import random
+import sys
+from pathlib import Path
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+
+# Allow Flask backend to reuse the accessroute Mapbox directions engine.
+_ACCESSROUTE_ROOT = Path(__file__).resolve().parents[1] / "accessroute"
+if str(_ACCESSROUTE_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ACCESSROUTE_ROOT))
+
+from accessroute.main import build_route_candidates
+from accessroute.schemas import LatLng, RouteEvaluationRequest, WheelchairProfile
 
 app = Flask(__name__)
 CORS(app)
@@ -21,6 +31,34 @@ def home():
 @app.get("/health")
 def health():
     return jsonify({"status": "ok"})
+
+
+@app.post("/routes/mapbox")
+def get_mapbox_routes():
+    """Fetch Mapbox walking candidates using the shared accessroute engine."""
+    data = request.get_json(silent=True) or {}
+    origin = data.get("origin") or {}
+    destination = data.get("destination") or {}
+
+    try:
+        route_request = RouteEvaluationRequest(
+            session_id=data.get("session_id", "backend-session"),
+            origin=LatLng(
+                lat=float(origin.get("lat")),
+                lng=float(origin.get("lng")),
+            ),
+            destination=LatLng(
+                lat=float(destination.get("lat")),
+                lng=float(destination.get("lng")),
+            ),
+            profile=WheelchairProfile(device_type=data.get("device_type", "power")),
+            travel_mode=data.get("travel_mode", "WALK"),
+        )
+        candidates = build_route_candidates(route_request)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 502
+
+    return jsonify(candidates.dict())
 
 
 @app.post("/simulate")

@@ -34,7 +34,7 @@ from accessroute.elevation_service import (
     degraded_elevation_verdict,
 )
 from accessroute.llm import synthesize_directions
-from accessroute.route_service import (
+from accessroute.main import (
     degraded_route_candidates,
     fetch_route_candidates_async,
 )
@@ -117,21 +117,45 @@ async def on_startup(ctx: Context):
 # ---------------------------------------------------------------------------
 
 async def _fetch_candidates(ctx: Context, msg: RouteEvaluationRequest):
-    """Fetch Mapbox walking route candidates in-process.
+    """Fetch Mapbox walking route candidates directly (no route agent messaging).
 
     Returns:
         (RouteCandidates | None, service_degraded: bool, warning: str | None)
     """
     try:
         route_candidates = await fetch_route_candidates_async(
-            msg, MAPBOX_ACCESS_TOKEN
+            msg,
+            MAPBOX_ACCESS_TOKEN,
         )
     except ServiceDegraded as exc:
-        logger.warning("Mapbox routing degraded for session %s: %s", msg.session_id, exc)
-        return degraded_route_candidates(msg), True, f"Route service returned degraded results: {exc}"
+        logger.warning(
+            "Mapbox routing degraded for session %s: %s",
+            msg.session_id,
+            exc,
+        )
+        return (
+            degraded_route_candidates(msg),
+            True,
+            f"Route service returned degraded results: {exc}",
+        )
+    except Exception as exc:
+        logger.error(
+            "Mapbox routing failed for session %s: %s",
+            msg.session_id,
+            exc,
+        )
+        return (
+            degraded_route_candidates(msg),
+            True,
+            f"Route service error: {exc}",
+        )
 
-    if route_candidates.service_degraded or not route_candidates.candidates:
-        return route_candidates, True, "Route service returned no Mapbox walking candidates."
+    if not route_candidates.candidates:
+        return (
+            route_candidates,
+            True,
+            "Route service returned no Mapbox walking candidates.",
+        )
 
     ctx.logger.info(
         "Mapbox returned %d walking candidate(s) for session %s",
