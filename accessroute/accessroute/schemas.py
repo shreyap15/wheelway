@@ -94,6 +94,11 @@ class RouteCandidates(Model):
 
 class ElevationCheckRequest(Model):
     """Request from the orchestrator to the elevation agent for one route."""
+
+    class Config:
+        # Pydantic v1 uses ``title`` to pin the JSON-schema name for digest stability.
+        title = "ElevationCheckRequest"
+
     session_id: str
     route_index: int
     encoded_polyline: str
@@ -103,6 +108,10 @@ class ElevationCheckRequest(Model):
 
 class ElevationVerdict(Model):
     """Elevation agent's verdict on one route's accessibility."""
+
+    class Config:
+        title = "ElevationVerdict"
+
     session_id: str
     route_index: int
     segments: List[SegmentElevationReport]

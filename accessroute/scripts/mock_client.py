@@ -9,11 +9,9 @@ Usage:
 Requires the bureau to be running (python -m accessroute.bureau_main).
 """
 
-import os
-import sys
+from _bootstrap import ensure_project_root
 
-# Ensure accessroute package is importable when running from project root
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ensure_project_root()
 
 from uagents import Agent, Context
 

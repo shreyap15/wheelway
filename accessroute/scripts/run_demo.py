@@ -19,10 +19,10 @@ Usage:
 import asyncio
 import os
 import signal
-import sys
 
-# Ensure accessroute package is importable when running from project root
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _bootstrap import ensure_project_root
+
+ensure_project_root()
 
 from uagents import Agent, Context
 

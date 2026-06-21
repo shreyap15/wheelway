@@ -9,7 +9,10 @@ import logging
 from uagents import Agent, Context
 
 from accessroute.config import ELEVATION_AGENT, GOOGLE_MAPS_API_KEY
-from accessroute.schemas import ElevationCheckRequest, ElevationVerdict
+from accessroute.schemas import (
+    ElevationCheckRequest,
+    ElevationVerdict,
+)
 from accessroute.tools.elevation_tool import sample_elevations, grade_segments
 from accessroute.common.http import ServiceDegraded
 
