@@ -4,8 +4,12 @@ import random
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
+from app.api.routes import route_bp
+
 app = Flask(__name__)
 CORS(app)
+
+app.register_blueprint(route_bp)
 
 observations = []
 
