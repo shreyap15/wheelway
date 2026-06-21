@@ -637,6 +637,7 @@ h1 {
 }
 
 .map-wrap {
+  position: relative;
   min-height: 480px;
   overflow: hidden;
   border: 1px solid rgba(28, 49, 36, 0.1);
@@ -701,4 +702,336 @@ h1 {
     justify-content: space-between;
     text-align: left;
   }
+}
+
+/* --- Local-slope legend + hover details (real-route map) --- */
+.slope-legend {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  z-index: 2;
+  max-width: 230px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(28, 49, 36, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(29, 49, 36, 0.12);
+  font-size: 0.78rem;
+  color: #1c3124;
+}
+
+.slope-legend-title {
+  margin: 0 0 6px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+}
+
+.slope-legend ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.slope-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slope-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 8px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.slope-legend-note {
+  margin: 0;
+  color: #6a7a70;
+  line-height: 1.35;
+}
+
+.slope-popup {
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+/* --- Stair status (real-route summary) --- */
+.stair-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 14px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(28, 49, 36, 0.04);
+  border: 1px solid rgba(28, 49, 36, 0.1);
+  font-size: 0.85rem;
+}
+
+.stair-status .stair-dot {
+  margin-top: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.stair-status .stair-meta {
+  color: #6a7a70;
+  font-weight: 500;
+}
+
+.stair-status .stair-sources {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: #6a7a70;
+}
+
+.stair-status.stair-confirmed {
+  background: rgba(176, 0, 32, 0.08);
+  border-color: rgba(176, 0, 32, 0.3);
+}
+
+.stair-status.stair-likely {
+  background: rgba(232, 130, 31, 0.1);
+  border-color: rgba(232, 130, 31, 0.35);
+}
+
+/* --- Place search (autocomplete) --- */
+.place-search {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.place-search-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #1c3124;
+}
+
+.place-search-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.place-search-row input {
+  flex: 1;
+}
+
+.place-loc-btn,
+.swap-btn {
+  border: 1px solid rgba(28, 49, 36, 0.18);
+  background: #fff;
+  border-radius: 8px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.swap-row {
+  display: flex;
+  justify-content: center;
+  margin: 2px 0;
+}
+
+.swap-btn {
+  padding: 4px 12px;
+  font-size: 0.78rem;
+}
+
+.place-results {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid rgba(28, 49, 36, 0.16);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(29, 49, 36, 0.14);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.place-option {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(28, 49, 36, 0.06);
+  cursor: pointer;
+}
+
+.place-option:hover {
+  background: rgba(47, 155, 95, 0.08);
+}
+
+.place-option span {
+  font-size: 0.72rem;
+  color: #6a7a70;
+}
+
+.place-msg,
+.place-hint {
+  padding: 8px 10px;
+  font-size: 0.76rem;
+  color: #6a7a70;
+}
+
+.place-hint-error {
+  color: #b00020;
+}
+
+.place-selected {
+  margin: 4px 0 0;
+  font-size: 0.74rem;
+  color: #2f7a4f;
+}
+
+.dev-fallback {
+  margin: 8px 0;
+  font-size: 0.78rem;
+  color: #6a7a70;
+}
+
+.affects-note {
+  margin: 8px 0 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #2f7a4f;
+}
+
+.affects-note-muted {
+  color: #9a7a30;
+}
+
+.trip-line {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+}
+
+/* --- Route alternative cards (Google-Maps-style picker) --- */
+.route-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.route-card {
+  text-align: left;
+  border: 1px solid rgba(28, 49, 36, 0.14);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.route-card.active {
+  border-color: #2f9b5f;
+  box-shadow: 0 0 0 2px rgba(47, 155, 95, 0.25);
+}
+
+.route-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.rec-badge {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #2f9b5f;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.route-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 0.76rem;
+  color: #4a5a50;
+}
+
+.route-card-reason {
+  margin: 6px 0 0;
+  font-size: 0.76rem;
+  color: #6a7a70;
+}
+
+.selection-reasons {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(47, 155, 95, 0.08);
+  border: 1px solid rgba(47, 155, 95, 0.25);
+  font-size: 0.82rem;
+  color: #1c3124;
+}
+
+.selection-reasons p {
+  margin: 0 0 4px;
+}
+
+.selection-reasons p:last-child {
+  margin-bottom: 0;
+}
+
+.legend-stairs {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(28, 49, 36, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stair-swatch {
+  border: 1px dashed rgba(0, 0, 0, 0.5);
+  background-clip: padding-box;
+}
+
+/* --- Synthetic A* demo disclosure --- */
+.synthetic-note {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: rgba(232, 175, 69, 0.12);
+  border: 1px solid rgba(232, 175, 69, 0.45);
+  border-radius: 12px;
+  font-size: 0.82rem;
+  color: #5d4a17;
+}
+
+.synthetic-note strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #3f3410;
+}
+
+.synthetic-note ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }

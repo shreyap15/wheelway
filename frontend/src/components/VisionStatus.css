@@ -1,0 +1,89 @@
+.vision-status {
+  margin: 1rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e1e6e2;
+  border-radius: 12px;
+  background: #fbfcfb;
+}
+
+.vision-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.95rem;
+}
+
+.vision-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.vision-dot.on { background: #2f9b5f; box-shadow: 0 0 0 3px rgba(47, 155, 95, 0.18); }
+.vision-dot.off { background: #b6bdc0; }
+
+.vision-fresh {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: #6b7672;
+}
+
+.vision-stream-toggle {
+  margin-left: 0.5rem;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid #cdd5d0;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.vision-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.7rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.vision-critical {
+  background: #fdecec;
+  color: #a51f1f;
+  border: 1px solid #f0b6b6;
+}
+.vision-warning {
+  background: #fdf4e3;
+  color: #8a5a14;
+  border: 1px solid #efd49a;
+}
+
+.vision-arrow { font-size: 1.6rem; line-height: 1; }
+.vision-text { flex: 1; }
+.vision-ttc {
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.vision-clear {
+  margin: 0.6rem 0 0;
+  color: #3f7d5c;
+  font-size: 0.9rem;
+}
+.vision-offline-note {
+  margin: 0.5rem 0 0;
+  color: #8a5a14;
+  font-size: 0.88rem;
+}
+
+.vision-stream {
+  margin-top: 0.7rem;
+}
+.vision-stream img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #000;
+}

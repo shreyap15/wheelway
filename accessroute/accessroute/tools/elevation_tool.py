@@ -242,3 +242,106 @@ def grade_segments(
     )
 
     return reports, all_compliant, max_grade
+
+
+# --------------------------------------------------------------------------- #
+# Local slope sections (canonical ``slope_segments`` builder)
+# --------------------------------------------------------------------------- #
+# Classification bands over ABSOLUTE grade. ``max_slope_pct`` is the user's
+# configured maximum (the incline limit). Anything above it is ``exceeds_limit``;
+# the check is applied first so it stays correct even when the user's limit is
+# below the 5% "challenging" floor.
+SLOPE_CLASS_LOW = "low"
+SLOPE_CLASS_MODERATE = "moderate"
+SLOPE_CLASS_CHALLENGING = "challenging"
+SLOPE_CLASS_EXCEEDS = "exceeds_limit"
+
+
+def classify_grade(absolute_grade_pct: float, max_slope_pct: float) -> str:
+    """Classify an absolute grade against the user's configured maximum.
+
+    Bands:
+        low          : below 3%
+        moderate     : 3% to below 5%
+        challenging  : 5% through the user's configured maximum (inclusive)
+        exceeds_limit: above the user's configured maximum
+    """
+    if absolute_grade_pct > max_slope_pct:
+        return SLOPE_CLASS_EXCEEDS
+    if absolute_grade_pct < 3.0:
+        return SLOPE_CLASS_LOW
+    if absolute_grade_pct < 5.0:
+        return SLOPE_CLASS_MODERATE
+    return SLOPE_CLASS_CHALLENGING
+
+
+def _finalize_slope_group(group: list, samples: list[dict]) -> dict:
+    """Collapse a run of same-classification segment reports into one section.
+
+    ``group`` is a list of (SegmentElevationReport, classification) tuples whose
+    classifications are all identical. Section grade is distance-weighted from the
+    member segments so it reflects the smoothed elevation data exactly:
+        - ``grade_pct``          : signed (preserves net uphill vs downhill)
+        - ``absolute_grade_pct`` : mean magnitude (stays inside the class band)
+    Indices are into the elevation ``samples`` array.
+    """
+    classification = group[0][1]
+    start_index = group[0][0].segment_index
+    end_index = group[-1][0].segment_index + 1
+
+    pts = samples[start_index : end_index + 1]
+    coordinates = [[p["lng"], p["lat"]] for p in pts]
+
+    total_dist = sum(report.distance_meters for report, _ in group)
+    if total_dist > 0:
+        signed = sum(report.grade_percentage * report.distance_meters for report, _ in group) / total_dist
+        absolute = sum(abs(report.grade_percentage) * report.distance_meters for report, _ in group) / total_dist
+    else:
+        n = len(group)
+        signed = sum(report.grade_percentage for report, _ in group) / n
+        absolute = sum(abs(report.grade_percentage) for report, _ in group) / n
+
+    return {
+        "geometry": {"type": "LineString", "coordinates": coordinates},
+        "start_index": start_index,
+        "end_index": end_index,
+        "grade_pct": round(signed, 1),
+        "absolute_grade_pct": round(absolute, 1),
+        "elevation_start_m": round(samples[start_index]["elevation"], 1),
+        "elevation_end_m": round(samples[end_index]["elevation"], 1),
+        "classification": classification,
+        "exceeds_user_limit": classification == SLOPE_CLASS_EXCEEDS,
+    }
+
+
+def build_slope_segments(
+    samples: list[dict],
+    reports: list[SegmentElevationReport],
+    max_slope_pct: float,
+) -> list[dict]:
+    """Group consecutive graded segments into meaningful local slope sections.
+
+    Reuses the SAME smoothed elevation ``samples`` and per-segment ``reports``
+    already produced by ``grade_segments`` -- no coordinates are guessed and no
+    elevation is fabricated. Adjacent segments sharing a classification are
+    merged so the result is a handful of route sections, not hundreds of noisy
+    one-sample features.
+
+    Returns a list of dicts (one per section). Empty when there is no usable
+    elevation data (the caller must NOT synthesize placeholder sections).
+    """
+    if not reports or len(samples) < 2:
+        return []
+
+    classed = [(report, classify_grade(abs(report.grade_percentage), max_slope_pct)) for report in reports]
+
+    sections: list[dict] = []
+    group = [classed[0]]
+    for item in classed[1:]:
+        if item[1] == group[-1][1]:
+            group.append(item)
+        else:
+            sections.append(_finalize_slope_group(group, samples))
+            group = [item]
+    sections.append(_finalize_slope_group(group, samples))
+    return sections

@@ -208,4 +208,13 @@ def real_route():
             502,
         )
 
-    return jsonify(result.dict())
+    data = result.dict()
+    # Create + persist a route session, emit events, derive alerts. Best-effort:
+    # never blocks or fails the route geometry response.
+    from app.services import session_service
+
+    enrichment = session_service.create_route_session(data)
+    data["route_session_id"] = enrichment.get("route_session_id")
+    data["alerts"] = enrichment.get("alerts", [])
+    data["auto_speak_alerts"] = enrichment.get("auto_speak_alerts", [])
+    return jsonify(data)

@@ -41,6 +41,27 @@ class WheelchairProfile(Model):
         default=True,
         description="Whether the user requires curb ramps at intersections.",
     )
+    avoid_stairs: bool = Field(
+        default=True,
+        description=(
+            "Whether the user wants stair-containing routes avoided. Separate from "
+            "requires_curb_ramps -- neither is inferred from the other."
+        ),
+    )
+    max_cross_slope_pct: float = Field(
+        default=2.0,
+        description=(
+            "Preferred maximum cross slope. NOT measurable from current real-route "
+            "sources -- recorded but never scored as if verified."
+        ),
+    )
+    surface_sensitivity: float = Field(
+        default=0.5,
+        description=(
+            "0..1 sensitivity to rough surfaces. NOT measurable from current "
+            "real-route sources -- recorded but never scored as if verified."
+        ),
+    )
     battery_range_km: float = Field(
         default=15.0,
         description="Remaining battery range in km (relevant for power chairs).",
@@ -88,6 +109,14 @@ class RouteCandidate(Model):
     duration_seconds: float
     num_steps: int
     travel_mode: str
+    steps: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "Per-step evidence from Mapbox walking directions (name, instruction, "
+            "maneuver location [lng,lat], geometry). Used for weak stair-term "
+            "heuristics only -- never treated as confirmed stairs."
+        ),
+    )
 
 
 class RouteCandidates(Model):
