@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import { TopographicalAccessibilityMap } from "./components/topographical";
+import { DEMO_ROUTE } from "./data/demoRoute";
 
 const API_URL = "http://127.0.0.1:5000";
 
@@ -15,7 +16,7 @@ async function fetchDemoRoute() {
 }
 
 function App() {
-  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [selectedRoute, setSelectedRoute] = useState(DEMO_ROUTE);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -25,7 +26,8 @@ function App() {
       setSelectedRoute(await fetchDemoRoute());
       setError("");
     } catch (err) {
-      setError(err.message);
+      setSelectedRoute(DEMO_ROUTE);
+      setError(`${err.message} Showing bundled demo geometry.`);
     } finally {
       setLoading(false);
     }
@@ -43,7 +45,8 @@ function App() {
       })
       .catch((err) => {
         if (!isCancelled) {
-          setError(err.message);
+          setSelectedRoute(DEMO_ROUTE);
+          setError(`${err.message} Showing bundled demo geometry.`);
         }
       })
       .finally(() => {
