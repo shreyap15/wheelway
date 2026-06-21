@@ -1,7 +1,62 @@
 import { useEffect, useState } from "react";
+import { TopographicalAccessibilityMap } from "./components/topographical";
 import "./App.css";
 
 const API_URL = "http://127.0.0.1:5000";
+
+const TOPOGRAPHICAL_DEMO_SEGMENTS = [
+  {
+    id: "hearst-gentle-approach",
+    coordinates: [
+      [-122.2686, 37.8717, 84],
+      [-122.2679, 37.8715, 86],
+      [-122.2671, 37.8712, 88],
+    ],
+    accessibilityScore: 92,
+    runningSlopePct: 2.4,
+    crossSlopePct: 1.1,
+    type: "sidewalk",
+    surface: "concrete",
+  },
+  {
+    id: "campus-cross-slope-warning",
+    coordinates: [
+      [-122.2671, 37.8712, 88],
+      [-122.2664, 37.8709, 92],
+      [-122.2658, 37.8706, 97],
+    ],
+    accessibilityScore: 68,
+    runningSlopePct: 5.7,
+    crossSlopePct: 2.6,
+    type: "sidewalk",
+    surface: "pavers",
+  },
+  {
+    id: "curb-without-ramp-barrier",
+    coordinates: [
+      [-122.2658, 37.8706, 97],
+      [-122.2653, 37.8702, 105],
+    ],
+    accessibilityScore: 24,
+    runningSlopePct: 9.8,
+    crossSlopePct: 4.1,
+    type: "curb_no_ramp",
+    surface: "asphalt",
+  },
+  {
+    id: "south-detour-recovery",
+    coordinates: [
+      [-122.2653, 37.8702, 105],
+      [-122.266, 37.8698, 101],
+      [-122.267, 37.8696, 96],
+    ],
+    accessibilityScore: 83,
+    runningSlopePct: 3.2,
+    crossSlopePct: 1.4,
+    type: "sidewalk",
+    surface: "concrete",
+  },
+];
 
 function App() {
   const [observations, setObservations] = useState([]);
@@ -69,12 +124,18 @@ function App() {
   }
 
   useEffect(() => {
-    checkBackend();
-    loadObservations();
+    const refresh = () => {
+      checkBackend();
+      loadObservations();
+    };
 
-    const interval = setInterval(loadObservations, 1000);
+    const initialRefresh = setTimeout(refresh, 0);
+    const interval = setInterval(refresh, 1000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialRefresh);
+      clearInterval(interval);
+    };
   }, []);
 
   function formatTime(timestamp) {
@@ -172,6 +233,22 @@ function App() {
         <p>
           This button temporarily acts like the Raspberry Pi.
         </p>
+      </section>
+
+      <section className="topographical-section">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Topographical routing</p>
+            <h2>Terrain-aware accessibility</h2>
+          </div>
+
+          <span>{TOPOGRAPHICAL_DEMO_SEGMENTS.length} route segments</span>
+        </div>
+
+        <TopographicalAccessibilityMap
+          routeSegments={TOPOGRAPHICAL_DEMO_SEGMENTS}
+          allSegments={TOPOGRAPHICAL_DEMO_SEGMENTS}
+        />
       </section>
 
       <section className="history-section">

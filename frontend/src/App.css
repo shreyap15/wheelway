@@ -216,6 +216,240 @@ h1 {
   font-size: 0.9rem;
 }
 
+.topographical-section {
+  margin: 26px 0 54px;
+}
+
+.topographical-map,
+.topographical-map-shell {
+  position: relative;
+  height: min(72vh, 760px);
+  min-height: 640px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 18px;
+  background: #020617;
+  box-shadow: 0 22px 70px rgba(15, 23, 42, 0.18);
+}
+
+.topographical-map-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #020617;
+}
+
+.topographical-map-missing {
+  display: grid;
+  min-height: 420px;
+  place-items: center;
+  padding: 24px;
+}
+
+.topographical-token-missing {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.topographical-token-card {
+  width: min(100%, 430px);
+  padding: 22px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 16px;
+  color: #f8fafc;
+  text-align: center;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.topographical-token-card h2 {
+  margin-bottom: 8px;
+  font-size: 1.1rem;
+}
+
+.topographical-token-card p {
+  margin-bottom: 0;
+  color: #cbd5e1;
+  font-size: 0.92rem;
+}
+
+.topographical-map-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.topographical-panel {
+  position: absolute;
+  z-index: 20;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+  background: rgba(2, 6, 23, 0.76);
+  box-shadow: 0 20px 55px rgba(2, 6, 23, 0.34);
+  backdrop-filter: blur(18px);
+  pointer-events: auto;
+}
+
+.topographical-legend {
+  top: 24px;
+  left: 24px;
+  width: min(17rem, calc(100% - 48px));
+  padding: 14px;
+  border-radius: 16px;
+  font-size: 0.78rem;
+}
+
+.topographical-legend h2 {
+  margin-bottom: 12px;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 760;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.topographical-legend-items {
+  display: grid;
+  gap: 9px;
+}
+
+.topographical-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.topographical-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.topographical-swatch-safe {
+  background: #14b8a6;
+}
+
+.topographical-swatch-caution {
+  background: #f59e0b;
+}
+
+.topographical-swatch-danger {
+  background: #e11d48;
+}
+
+.topographical-range {
+  margin-left: auto;
+  padding-left: 16px;
+  color: #94a3b8;
+}
+
+.topographical-legend p {
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.topographical-route-status {
+  top: 24px;
+  right: 24px;
+  width: min(22rem, calc(100% - 48px));
+  padding: 16px;
+  border-radius: 16px;
+}
+
+.topographical-validation {
+  margin-bottom: 15px;
+  padding: 10px 12px;
+  border: 1px solid;
+  border-radius: 12px;
+}
+
+.topographical-validation-accessible {
+  border-color: rgba(45, 212, 191, 0.42);
+  color: #ccfbf1;
+  background: rgba(20, 184, 166, 0.15);
+}
+
+.topographical-validation-obstacle {
+  border-color: rgba(251, 113, 133, 0.42);
+  color: #ffe4e6;
+  background: rgba(244, 63, 94, 0.16);
+}
+
+.topographical-validation-label,
+.topographical-route-status dt {
+  color: #94a3b8;
+  font-size: 0.64rem;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.topographical-validation-value {
+  margin-top: 3px;
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.topographical-route-status dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.topographical-route-status dd {
+  margin: 4px 0 0;
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 760;
+}
+
+.topographical-elevation-panel {
+  right: 24px;
+  bottom: 24px;
+  left: 24px;
+  height: 230px;
+  overflow: hidden;
+  padding: 14px;
+  border-radius: 16px;
+}
+
+.topographical-elevation-heading h2 {
+  margin-bottom: 4px;
+  color: #ffffff;
+  font-size: 0.95rem;
+}
+
+.topographical-elevation-heading p {
+  margin-bottom: 0;
+  color: #cbd5e1;
+  font-size: 0.76rem;
+}
+
+.topographical-elevation-chart {
+  height: calc(100% - 42px);
+}
+
+.topographical-chart-tooltip {
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  color: #f8fafc;
+  background: rgba(2, 6, 23, 0.96);
+  box-shadow: 0 18px 36px rgba(2, 6, 23, 0.32);
+  font-size: 0.74rem;
+}
+
+.topographical-chart-tooltip-title {
+  margin-bottom: 3px;
+  font-weight: 760;
+}
+
 .history-section {
   padding-top: 8px;
 }
@@ -318,6 +552,28 @@ h1 {
 
   .card {
     min-height: auto;
+  }
+
+  .topographical-map {
+    height: 760px;
+  }
+
+  .topographical-legend,
+  .topographical-route-status {
+    left: 14px;
+    right: 14px;
+    width: auto;
+  }
+
+  .topographical-route-status {
+    top: 174px;
+  }
+
+  .topographical-elevation-panel {
+    right: 14px;
+    bottom: 14px;
+    left: 14px;
+    height: 220px;
   }
 }
 

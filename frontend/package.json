@@ -10,8 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "deck.gl": "^9.3.4",
+    "mapbox-gl": "^3.25.0",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "react-map-gl": "^8.1.1",
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
