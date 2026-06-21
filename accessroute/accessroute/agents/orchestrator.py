@@ -17,6 +17,7 @@ Message flow:
 
 import asyncio
 import logging
+from types import SimpleNamespace
 
 from uagents import Agent, Context
 
@@ -82,30 +83,56 @@ async def _fetch_candidates(ctx: Context, msg: RouteEvaluationRequest):
     return route_reply, False, None
 
 
+def _coerce_elevation_verdict(reply):
+    """Normalize elevation replies for downstream scoring and synthesis."""
+    if isinstance(reply, ElevationVerdict):
+        return reply
+    if isinstance(reply, dict):
+        try:
+            return ElevationVerdict.parse_obj(reply)
+        except Exception:
+            return SimpleNamespace(
+                route_index=reply.get("route_index"),
+                is_route_compliant=reply.get("is_route_compliant", False),
+                max_grade_percentage=reply.get("max_grade_percentage", 0.0),
+                service_degraded=reply.get("service_degraded", False),
+                segments=reply.get("segments", []),
+            )
+    if hasattr(reply, "is_route_compliant"):
+        return reply
+    return None
+
+
 async def _fetch_elevation(ctx: Context, session_id, candidate, profile):
     """Send an ElevationCheckRequest for one candidate. Returns (ElevationVerdict | None, warning | None)."""
+    profile_data = profile if isinstance(profile, dict) else profile.dict()
     req = ElevationCheckRequest(
         session_id=session_id,
         route_index=candidate.route_index,
         encoded_polyline=candidate.encoded_polyline,
         distance_meters=candidate.distance_meters,
-        profile=profile,
+        profile=profile_data,
     )
     try:
         reply, _status = await ctx.send_and_receive(
-            ELEVATION_AGENT_ADDRESS, req, response_type=ElevationVerdict
+            ELEVATION_AGENT_ADDRESS, req
         )
     except Exception as exc:
         logger.error("Elevation agent error for route %d: %s", candidate.route_index, exc)
         return None, f"Elevation check failed for route {candidate.route_index}: {exc}"
 
-    if not isinstance(reply, ElevationVerdict):
+    if not hasattr(reply, "is_route_compliant") and not isinstance(reply, dict):
         return None, f"Elevation agent returned unexpected type for route {candidate.route_index}."
 
     warning = None
-    if reply.service_degraded:
+    service_degraded = (
+        reply.get("service_degraded", False)
+        if isinstance(reply, dict)
+        else getattr(reply, "service_degraded", False)
+    )
+    if service_degraded:
         warning = f"Elevation data degraded for route {candidate.route_index}."
-    return reply, warning
+    return _coerce_elevation_verdict(reply), warning
 
 
 async def _fetch_accessibility(ctx: Context, session_id, destination):

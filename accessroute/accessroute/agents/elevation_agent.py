@@ -12,6 +12,7 @@ from accessroute.config import ELEVATION_AGENT, GOOGLE_MAPS_API_KEY
 from accessroute.schemas import (
     ElevationCheckRequest,
     ElevationVerdict,
+    WheelchairProfile,
 )
 from accessroute.tools.elevation_tool import sample_elevations, grade_segments
 from accessroute.common.http import ServiceDegraded
@@ -49,11 +50,16 @@ async def handle_elevation_request(ctx: Context, sender: str, msg: ElevationChec
             msg.distance_meters,
             api_key=GOOGLE_MAPS_API_KEY,
         )
-        reports, compliant, maxg = grade_segments(samples, msg.profile)
+        profile = (
+            msg.profile
+            if isinstance(msg.profile, WheelchairProfile)
+            else WheelchairProfile.parse_obj(msg.profile)
+        )
+        reports, compliant, maxg = grade_segments(samples, profile)
         result = ElevationVerdict(
             session_id=msg.session_id,
             route_index=msg.route_index,
-            segments=reports,
+            segments=[report.dict() for report in reports],
             is_route_compliant=compliant,
             max_grade_percentage=maxg,
             service_degraded=False,

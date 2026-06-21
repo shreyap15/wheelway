@@ -7,7 +7,7 @@ These schemas are the FROZEN CONTRACT -- do not rename fields or classes.
 Downstream agents depend on exact names and types.
 """
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from uagents import Model
 from pydantic.v1 import Field
@@ -103,7 +103,7 @@ class ElevationCheckRequest(Model):
     route_index: int
     encoded_polyline: str
     distance_meters: float
-    profile: WheelchairProfile
+    profile: Dict[str, Any]
 
 
 class ElevationVerdict(Model):
