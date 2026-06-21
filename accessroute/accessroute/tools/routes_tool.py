@@ -4,6 +4,8 @@ Calls the Routes API v2 computeRoutes endpoint and returns a list
 of RouteCandidate schema objects.
 """
 
+from datetime import datetime, timezone, timedelta
+
 from accessroute.schemas import LatLng, RouteCandidate
 
 
@@ -42,7 +44,86 @@ def _build_request_body(
     Returns:
         dict suitable for ``json=`` in a POST request.
     """
-    raise NotImplementedError("_build_request_body: to be implemented by route-agent builder")
+    body = {
+        "origin": {
+            "location": {
+                "latLng": {
+                    "latitude": origin.lat,
+                    "longitude": origin.lng,
+                }
+            }
+        },
+        "destination": {
+            "location": {
+                "latLng": {
+                    "latitude": destination.lat,
+                    "longitude": destination.lng,
+                }
+            }
+        },
+        "travelMode": travel_mode,
+        "computeAlternativeRoutes": alternatives,
+        "polylineEncoding": "ENCODED_POLYLINE",
+        "languageCode": "en-US",
+        "units": "METRIC",
+    }
+
+    if travel_mode == "TRANSIT":
+        # For TRANSIT, add departure time and transit preferences
+        departure_time = (datetime.now(timezone.utc) + timedelta(minutes=2)).isoformat().replace("+00:00", "Z")
+        body["departureTime"] = departure_time
+        body["transitPreferences"] = {
+            "routingPreference": "LESS_WALKING",
+            "allowedTravelModes": ["BUS", "LIGHT_RAIL", "SUBWAY", "TRAIN", "RAIL"],
+        }
+
+    return body
+
+
+def _parse_routes_response(data: dict, travel_mode: str) -> list[RouteCandidate]:
+    """Parse the JSON response from Google Routes API into RouteCandidate objects.
+
+    Args:
+        data: The JSON response dict from the API.
+        travel_mode: The travel mode used in the request (e.g., "WALK" or "TRANSIT").
+
+    Returns:
+        A list of RouteCandidate objects, one per route in the response.
+    """
+    candidates = []
+    routes = data.get("routes", [])
+
+    for route_index, route in enumerate(routes):
+        # Extract basic route info
+        distance_meters = float(route.get("distanceMeters", 0))
+        duration_str = route.get("duration", "0s")
+
+        # Parse duration: strip trailing 's' and convert to float seconds
+        if isinstance(duration_str, str) and duration_str.endswith("s"):
+            duration_str = duration_str[:-1]
+        duration_seconds = float(duration_str) if duration_str else 0.0
+
+        # Extract polyline
+        encoded_polyline = route.get("polyline", {}).get("encodedPolyline", "")
+
+        # Count total steps across all legs
+        num_steps = 0
+        legs = route.get("legs", [])
+        for leg in legs:
+            steps = leg.get("steps", [])
+            num_steps += len(steps)
+
+        candidate = RouteCandidate(
+            route_index=route_index,
+            encoded_polyline=encoded_polyline,
+            distance_meters=distance_meters,
+            duration_seconds=duration_seconds,
+            num_steps=num_steps,
+            travel_mode=travel_mode,
+        )
+        candidates.append(candidate)
+
+    return candidates
 
 
 def compute_routes(
@@ -92,4 +173,25 @@ def compute_routes(
     Returns:
         A list of RouteCandidate objects.
     """
-    raise NotImplementedError("compute_routes: to be implemented by route-agent builder")
+    from accessroute.common.http import request_with_retry
+
+    url = "https://routes.googleapis.com/directions/v2:computeRoutes"
+
+    headers = {
+        "X-Goog-Api-Key": api_key,
+        "Content-Type": "application/json",
+        "X-Goog-FieldMask": "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.legs.steps",
+    }
+
+    body = _build_request_body(
+        origin,
+        destination,
+        travel_mode=travel_mode,
+        alternatives=alternatives,
+    )
+
+    resp = request_with_retry("POST", url, headers=headers, json=body)
+    resp.raise_for_status()
+
+    data = resp.json()
+    return _parse_routes_response(data, travel_mode)

@@ -10,6 +10,7 @@ from uagents import Agent, Context
 
 from accessroute.config import PLACES_AGENT, GOOGLE_MAPS_API_KEY
 from accessroute.schemas import AccessibilityCheckRequest, AccessibilityVerdict
+from accessroute.tools.places_tool import check_destination_accessibility
 
 logger = logging.getLogger(__name__)
 
@@ -35,5 +36,20 @@ async def handle_accessibility_request(ctx: Context, sender: str, msg: Accessibi
     2. Reply to the sender (orchestrator) with AccessibilityVerdict.
     3. On ServiceDegraded, reply with service_degraded=True and a warning.
     """
-    # Stub: to be implemented by places-agent builder
-    pass
+    verdict = check_destination_accessibility(
+        msg.destination,
+        api_key=GOOGLE_MAPS_API_KEY,
+        radius_meters=msg.radius_meters,
+    )
+
+    # Tool returns session_id="" ; fill with the real session_id from request
+    verdict_with_session = AccessibilityVerdict(
+        session_id=msg.session_id,
+        place_id=verdict.place_id,
+        display_name=verdict.display_name,
+        wheelchair_entrance=verdict.wheelchair_entrance,
+        warning=verdict.warning,
+        service_degraded=verdict.service_degraded,
+    )
+
+    await ctx.send(sender, verdict_with_session)

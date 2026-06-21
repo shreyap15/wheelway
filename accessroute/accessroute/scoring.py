@@ -20,7 +20,7 @@ def prune_noncompliant(verdicts: list[ElevationVerdict]) -> list[int]:
     Returns:
         List of route_index values for compliant routes.
     """
-    raise NotImplementedError("prune_noncompliant: to be implemented by orchestrator builder")
+    return [v.route_index for v in verdicts if v.is_route_compliant]
 
 
 def score_route(
@@ -37,6 +37,15 @@ def score_route(
     The exact weighting formula is left to the implementing agent,
     but the priority order above MUST be respected.
 
+    Weighting formula (lexicographic-style weighted sum so safety dominates):
+        score = max_grade_percentage * 1000
+               + distance_meters * 1.0
+               + num_steps * 10
+
+    With the * 1000 weight on grade, a route with even 1% higher max grade
+    needs to be ~1 km shorter to compensate -- effectively making safety
+    the primary sorting key, followed by distance, then complexity.
+
     Args:
         candidate: The route candidate with distance, duration, steps.
         verdict: The elevation verdict with grade information.
@@ -44,7 +53,11 @@ def score_route(
     Returns:
         A float score where lower is better.
     """
-    raise NotImplementedError("score_route: to be implemented by orchestrator builder")
+    return (
+        verdict.max_grade_percentage * 1000.0
+        + candidate.distance_meters * 1.0
+        + candidate.num_steps * 10.0
+    )
 
 
 def choose_best(
@@ -65,4 +78,25 @@ def choose_best(
     Returns:
         The route_index of the best route, or None if none are compliant.
     """
-    raise NotImplementedError("choose_best: to be implemented by orchestrator builder")
+    compliant_indices = set(prune_noncompliant(verdicts))
+    if not compliant_indices:
+        return None
+
+    # Build lookup of verdicts by route_index
+    verdict_map = {v.route_index: v for v in verdicts}
+
+    best_index: Optional[int] = None
+    best_score: float = float("inf")
+
+    for candidate in candidates:
+        if candidate.route_index not in compliant_indices:
+            continue
+        verdict = verdict_map.get(candidate.route_index)
+        if verdict is None:
+            continue
+        s = score_route(candidate, verdict)
+        if s < best_score:
+            best_score = s
+            best_index = candidate.route_index
+
+    return best_index

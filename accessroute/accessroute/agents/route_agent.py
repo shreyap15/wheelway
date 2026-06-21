@@ -10,6 +10,8 @@ from uagents import Agent, Context
 
 from accessroute.config import ROUTE_AGENT, GOOGLE_MAPS_API_KEY
 from accessroute.schemas import RouteEvaluationRequest, RouteCandidates
+from accessroute.tools.routes_tool import compute_routes
+from accessroute.common.http import ServiceDegraded
 
 logger = logging.getLogger(__name__)
 
@@ -36,5 +38,26 @@ async def handle_route_request(ctx: Context, sender: str, msg: RouteEvaluationRe
     3. Reply to the sender (orchestrator).
     4. On ServiceDegraded, reply with service_degraded=True.
     """
-    # Stub: to be implemented by route-agent builder
-    pass
+    try:
+        candidates = compute_routes(
+            msg.origin,
+            msg.destination,
+            api_key=GOOGLE_MAPS_API_KEY,
+            travel_mode=msg.travel_mode,
+        )
+        result = RouteCandidates(
+            session_id=msg.session_id,
+            candidates=candidates,
+            travel_mode=msg.travel_mode,
+            service_degraded=False,
+        )
+    except ServiceDegraded as exc:
+        ctx.logger.warning(f"Route API degraded for session {msg.session_id}: {exc}")
+        result = RouteCandidates(
+            session_id=msg.session_id,
+            candidates=[],
+            travel_mode=msg.travel_mode,
+            service_degraded=True,
+        )
+
+    await ctx.send(sender, result)

@@ -10,6 +10,8 @@ from uagents import Agent, Context
 
 from accessroute.config import ELEVATION_AGENT, GOOGLE_MAPS_API_KEY
 from accessroute.schemas import ElevationCheckRequest, ElevationVerdict
+from accessroute.tools.elevation_tool import sample_elevations, grade_segments
+from accessroute.common.http import ServiceDegraded
 
 logger = logging.getLogger(__name__)
 
@@ -37,5 +39,30 @@ async def handle_elevation_request(ctx: Context, sender: str, msg: ElevationChec
     4. Reply to the sender (orchestrator).
     5. On ServiceDegraded, reply with service_degraded=True.
     """
-    # Stub: to be implemented by elevation-agent builder
-    pass
+    try:
+        samples = sample_elevations(
+            msg.encoded_polyline,
+            msg.distance_meters,
+            api_key=GOOGLE_MAPS_API_KEY,
+        )
+        reports, compliant, maxg = grade_segments(samples, msg.profile)
+        result = ElevationVerdict(
+            session_id=msg.session_id,
+            route_index=msg.route_index,
+            segments=reports,
+            is_route_compliant=compliant,
+            max_grade_percentage=maxg,
+            service_degraded=False,
+        )
+    except ServiceDegraded as exc:
+        ctx.logger.warning(f"Elevation API degraded for session {msg.session_id}: {exc}")
+        result = ElevationVerdict(
+            session_id=msg.session_id,
+            route_index=msg.route_index,
+            segments=[],
+            is_route_compliant=False,
+            max_grade_percentage=0.0,
+            service_degraded=True,
+        )
+
+    await ctx.send(sender, result)
