@@ -148,6 +148,20 @@ def sample_elevations(
     return all_results
 
 
+def smooth_elevation_samples(samples: list[dict], window: int = 5) -> list[dict]:
+    """Apply a moving average to elevations to reduce API/GPS noise spikes."""
+    if len(samples) <= 2 or window <= 1:
+        return samples
+
+    smoothed: list[dict] = []
+    half = window // 2
+    for i, sample in enumerate(samples):
+        chunk = samples[max(0, i - half) : min(len(samples), i + half + 1)]
+        avg_elev = sum(point["elevation"] for point in chunk) / len(chunk)
+        smoothed.append({**sample, "elevation": avg_elev})
+    return smoothed
+
+
 def grade_segments(
     samples: list[dict],
     profile: WheelchairProfile,
@@ -177,7 +191,6 @@ def grade_segments(
             - float: Maximum absolute grade percentage found.
     """
     reports = []
-    all_compliant = True
     max_grade = 0.0
 
     for i in range(len(samples) - 1):
@@ -204,9 +217,6 @@ def grade_segments(
         else:  # Flat
             is_compliant = True
 
-        if not is_compliant:
-            all_compliant = False
-
         max_grade = max(max_grade, abs(grade))
 
         # Build report
@@ -220,5 +230,15 @@ def grade_segments(
             is_compliant=is_compliant,
         )
         reports.append(report)
+
+    uphill_max = max((report.grade_percentage for report in reports if report.grade_percentage > 0), default=0.0)
+    downhill_max = max(
+        (abs(report.grade_percentage) for report in reports if report.grade_percentage < 0),
+        default=0.0,
+    )
+    all_compliant = (
+        uphill_max <= profile.max_incline_grade
+        and downhill_max <= profile.max_decline_grade
+    )
 
     return reports, all_compliant, max_grade

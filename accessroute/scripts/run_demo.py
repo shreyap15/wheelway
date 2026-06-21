@@ -19,21 +19,17 @@ Usage:
 import asyncio
 import os
 import signal
-import sys
 
-# Ensure accessroute package is importable when running from project root
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _bootstrap import ensure_project_root
+
+ensure_project_root()
 
 from uagents import Agent, Context
 
 from accessroute.bureau_main import build_bureau
 from accessroute.addresses import ORCHESTRATOR_ADDRESS
-from accessroute.schemas import (
-    FinalRoute,
-    LatLng,
-    RouteEvaluationRequest,
-    WheelchairProfile,
-)
+from accessroute.config import demo_wheelchair_profile
+from accessroute.schemas import FinalRoute, LatLng, RouteEvaluationRequest
 
 # Client agent (ephemeral, no fixed port needed)
 client = Agent(
@@ -49,7 +45,7 @@ async def send_request(ctx: Context):
         session_id="demo-session-001",
         origin=LatLng(lat=37.8715, lng=-122.2595),
         destination=LatLng(lat=37.8756, lng=-122.2588),
-        profile=WheelchairProfile(device_type="power"),
+        profile=demo_wheelchair_profile(device_type="power"),
         travel_mode="WALK",
     )
 

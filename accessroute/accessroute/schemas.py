@@ -7,7 +7,7 @@ These schemas are the FROZEN CONTRACT -- do not rename fields or classes.
 Downstream agents depend on exact names and types.
 """
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from uagents import Model
 from pydantic.v1 import Field
@@ -59,7 +59,7 @@ class RouteEvaluationRequest(Model):
     profile: WheelchairProfile
     travel_mode: str = Field(
         default="WALK",
-        description="Google Routes API travel mode: 'WALK' or 'TRANSIT'.",
+        description="Preferred travel mode. Route candidates are sourced from Mapbox walking directions.",
     )
 
 
@@ -75,9 +75,15 @@ class SegmentElevationReport(Model):
 
 
 class RouteCandidate(Model):
-    """A single route option returned by the Google Routes API."""
+    """A single route option returned by the Mapbox Directions API."""
     route_index: int
-    encoded_polyline: str
+    encoded_polyline: str = Field(
+        ...,
+        description=(
+            "Google-standard precision-5 encoded polyline (lat,lng) derived from "
+            "Mapbox GeoJSON walking geometry for elevation sampling."
+        ),
+    )
     distance_meters: float
     duration_seconds: float
     num_steps: int
@@ -85,7 +91,7 @@ class RouteCandidate(Model):
 
 
 class RouteCandidates(Model):
-    """Collection of route candidates from the route agent to the orchestrator."""
+    """Collection of Mapbox walking route candidates for the orchestrator."""
     session_id: str
     candidates: List[RouteCandidate]
     travel_mode: str
@@ -94,18 +100,30 @@ class RouteCandidates(Model):
 
 class ElevationCheckRequest(Model):
     """Request from the orchestrator to the elevation agent for one route."""
+
+    class Config:
+        # Pydantic v1 uses ``title`` to pin the JSON-schema name for digest stability.
+        title = "ElevationCheckRequest"
+
     session_id: str
     route_index: int
-    encoded_polyline: str
+    encoded_polyline: str = Field(
+        ...,
+        description="Google-standard encoded polyline from Mapbox walking geometry.",
+    )
     distance_meters: float
-    profile: WheelchairProfile
+    profile: Dict[str, Any]
 
 
 class ElevationVerdict(Model):
     """Elevation agent's verdict on one route's accessibility."""
+
+    class Config:
+        title = "ElevationVerdict"
+
     session_id: str
     route_index: int
-    segments: List[SegmentElevationReport]
+    segments: List[Dict[str, Any]]
     is_route_compliant: bool
     max_grade_percentage: float
     service_degraded: bool = False

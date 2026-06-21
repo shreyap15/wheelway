@@ -23,6 +23,18 @@ def decode_polyline(encoded: str) -> list[tuple[float, float]]:
     return _polyline.decode(encoded)
 
 
+def encode_polyline(coordinates: list[tuple[float, float]]) -> str:
+    """Encode (lat, lng) coordinate pairs into a Google-standard polyline string."""
+    return _polyline.encode(coordinates)
+
+
+def geojson_linestring_to_latlng(
+    coordinates: list[list[float] | tuple[float, ...]],
+) -> list[tuple[float, float]]:
+    """Convert GeoJSON [lng, lat] coordinates to (lat, lng) tuples."""
+    return [(float(point[1]), float(point[0])) for point in coordinates]
+
+
 def haversine_meters(
     a: tuple[float, float], b: tuple[float, float]
 ) -> float:

@@ -30,9 +30,16 @@ def _entrance_status(accessibility: AccessibilityVerdict) -> str:
     return "unknown"
 
 
+def _segment_is_compliant(segment) -> bool:
+    """Return compliance for segment objects or primitive dict payloads."""
+    if isinstance(segment, dict):
+        return segment.get("is_compliant", True)
+    return segment.is_compliant
+
+
 def _steep_segment_count(verdict: ElevationVerdict) -> int:
     """Count segments that are not compliant."""
-    return sum(1 for seg in verdict.segments if not seg.is_compliant)
+    return sum(1 for seg in verdict.segments if not _segment_is_compliant(seg))
 
 
 def _build_structured_summary(
