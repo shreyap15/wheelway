@@ -18,7 +18,12 @@ load_dotenv(_env_path)
 # API keys
 # ---------------------------------------------------------------------------
 GOOGLE_MAPS_API_KEY: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
+MAPBOX_ACCESS_TOKEN: str = os.getenv("MAPBOX_ACCESS_TOKEN", "")
 ASI_ONE_API_KEY: str = os.getenv("ASI_ONE_API_KEY", "")
+
+# Demo/testing grade limits for steep campuses (e.g. Berkeley hills ~21% peaks).
+DEMO_MAX_INCLINE_GRADE: float = float(os.getenv("DEMO_MAX_INCLINE_GRADE", "25.0"))
+DEMO_MAX_DECLINE_GRADE: float = float(os.getenv("DEMO_MAX_DECLINE_GRADE", "25.0"))
 
 # ---------------------------------------------------------------------------
 # ASI:One LLM endpoint (OpenAI-compatible)
@@ -69,3 +74,14 @@ AGENTS: dict[str, AgentConfig] = {
     "elevation_agent": ELEVATION_AGENT,
     "places_agent": PLACES_AGENT,
 }
+
+
+def demo_wheelchair_profile(device_type: str = "power") -> "WheelchairProfile":
+    """Relaxed wheelchair profile for local demo runs on steep terrain."""
+    from accessroute.schemas import WheelchairProfile
+
+    return WheelchairProfile(
+        device_type=device_type,
+        max_incline_grade=DEMO_MAX_INCLINE_GRADE,
+        max_decline_grade=DEMO_MAX_DECLINE_GRADE,
+    )
