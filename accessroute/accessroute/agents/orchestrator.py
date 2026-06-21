@@ -16,10 +16,14 @@ Message flow:
 """
 
 import asyncio
+import json
 import logging
 from types import SimpleNamespace
 
-from uagents import Agent, Context
+from uagents import Agent, Context, Model
+from uagents.dispatch import dispatcher
+from uagents_core.identity import parse_identifier
+from uagents_core.types import DeliveryStatus, MsgStatus
 
 from accessroute.addresses import (
     ELEVATION_AGENT_ADDRESS,
@@ -40,6 +44,52 @@ from accessroute.schemas import (
 from accessroute.scoring import choose_best
 
 logger = logging.getLogger(__name__)
+
+ELEVATION_REQUEST_TIMEOUT = 120
+
+
+async def _send_and_receive_untyped(
+    ctx: Context,
+    destination: str,
+    message: Model,
+    *,
+    timeout: int = ELEVATION_REQUEST_TIMEOUT,
+):
+    """Send a message and accept any response schema digest (avoids digest mismatch timeouts)."""
+    schema_digest = Model.build_schema_digest(message)
+    _, _, parsed_address = parse_identifier(destination)
+
+    msg_status = await ctx.send_raw(
+        destination=destination,
+        message_schema_digest=schema_digest,
+        message_body=message.model_dump_json(),
+        wait_for_response=True,
+        timeout=timeout,
+        expected_response_digests=None,
+    )
+
+    if msg_status.status != DeliveryStatus.DELIVERED:
+        dispatcher.cancel_pending_response(ctx.agent.address, parsed_address, ctx.session)
+        return None, msg_status
+
+    response_msg = await dispatcher.wait_for_response(
+        ctx.agent.address, parsed_address, ctx.session, timeout
+    )
+    if response_msg is None:
+        return None, MsgStatus(
+            status=DeliveryStatus.FAILED,
+            detail="Timeout waiting for response",
+            destination=destination,
+            endpoint="",
+            session=ctx.session,
+        )
+
+    try:
+        payload = json.loads(response_msg.message)
+    except json.JSONDecodeError:
+        return response_msg.message, msg_status
+
+    return payload, msg_status
 
 orchestrator = Agent(
     name=ORCHESTRATOR.name,
@@ -114,8 +164,8 @@ async def _fetch_elevation(ctx: Context, session_id, candidate, profile):
         profile=profile_data,
     )
     try:
-        reply, _status = await ctx.send_and_receive(
-            ELEVATION_AGENT_ADDRESS, req
+        reply, _status = await _send_and_receive_untyped(
+            ctx, ELEVATION_AGENT_ADDRESS, req, timeout=ELEVATION_REQUEST_TIMEOUT
         )
     except Exception as exc:
         logger.error("Elevation agent error for route %d: %s", candidate.route_index, exc)
@@ -159,7 +209,11 @@ async def _fetch_accessibility(ctx: Context, session_id, destination):
 
 
 async def _run_elevation_and_accessibility(ctx, session_id, candidates, profile, destination):
-    """Run elevation checks for all candidates + accessibility check concurrently.
+    """Run elevation checks sequentially and accessibility check in parallel.
+
+    uAgents pending-response slots are keyed by (sender, destination, session),
+    so concurrent send_and_receive calls to the same agent overwrite each other
+    and cause spurious timeouts. Elevation checks are therefore serialized.
 
     Returns:
         (verdicts: list[ElevationVerdict], accessibility: AccessibilityVerdict | None,
@@ -168,29 +222,28 @@ async def _run_elevation_and_accessibility(ctx, session_id, candidates, profile,
     warnings = []
     any_degraded = False
 
-    # Build all coroutines: one per candidate elevation + one accessibility
-    elevation_coros = [
-        _fetch_elevation(ctx, session_id, c, profile) for c in candidates
-    ]
-    accessibility_coro = _fetch_accessibility(ctx, session_id, destination)
+    accessibility_task = asyncio.create_task(
+        _fetch_accessibility(ctx, session_id, destination)
+    )
 
-    # Run concurrently
-    all_results = await asyncio.gather(*elevation_coros, accessibility_coro)
+    elevation_results = []
+    for candidate in candidates:
+        elevation_results.append(
+            await _fetch_elevation(ctx, session_id, candidate, profile)
+        )
 
-    # Unpack elevation results (all but last)
+    accessibility, acc_warning = await accessibility_task
+
     verdicts = []
-    for result in all_results[:-1]:
-        elev_verdict, elev_warning = result
+    for elev_verdict, elev_warning in elevation_results:
         if elev_warning:
             warnings.append(elev_warning)
             any_degraded = True
         if elev_verdict is not None:
-            if elev_verdict.service_degraded:
+            if getattr(elev_verdict, "service_degraded", False):
                 any_degraded = True
             verdicts.append(elev_verdict)
 
-    # Unpack accessibility result (last)
-    accessibility, acc_warning = all_results[-1]
     if acc_warning:
         warnings.append(acc_warning)
         any_degraded = True

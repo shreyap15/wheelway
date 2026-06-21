@@ -114,7 +114,7 @@ class ElevationVerdict(Model):
 
     session_id: str
     route_index: int
-    segments: List[SegmentElevationReport]
+    segments: List[Dict[str, Any]]
     is_route_compliant: bool
     max_grade_percentage: float
     service_degraded: bool = False
