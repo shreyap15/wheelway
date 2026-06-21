@@ -1,17 +1,32 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import "./App.css";
-import RoutePlanner from "./RoutePlanner";
 import RealRoutePlanner from "./RealRoutePlanner";
+import VoiceAlerts from "./components/VoiceAlerts";
+import SponsorDiagnostics from "./components/SponsorDiagnostics";
+import {
+  REAL_MODE_LABEL,
+  SYNTHETIC_MODE_LABEL,
+  SYNTHETIC_MODE_SUBLABEL,
+  syntheticDemoEnabled,
+} from "./syntheticMode";
 
 const API_URL = "http://127.0.0.1:5000";
+
+// Synthetic A* demo is dev-flag-gated and lazy-loaded, so its code is never
+// fetched in the normal presentation build.
+const RoutePlanner = lazy(() => import("./RoutePlanner"));
+
+// Evaluated once at module load from the Vite env.
+const SYNTHETIC_ENABLED = syntheticDemoEnabled(import.meta.env);
 
 function App() {
   const [observations, setObservations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [backendOnline, setBackendOnline] = useState(false);
   const [error, setError] = useState("");
-  // "real" = API-derived geometry; "demo" = synthetic A* prototype.
+  // "real" = API-derived geometry; "demo" = synthetic A* prototype (dev only).
   const [routeMode, setRouteMode] = useState("real");
+  const showSynthetic = SYNTHETIC_ENABLED && routeMode === "demo";
 
   const latestObservation =
     observations.length > 0
@@ -108,6 +123,40 @@ function App() {
 
       {error && <div className="error-banner">{error}</div>}
 
+      {/* Dev-only mode switch. Absent from the presentation UI, so it opens
+          directly into the Real Accessible Route. */}
+      {SYNTHETIC_ENABLED && (
+        <section className="mode-switch">
+          <button
+            className={routeMode === "real" ? "active" : ""}
+            onClick={() => setRouteMode("real")}
+          >
+            {REAL_MODE_LABEL}
+            <span>Mapbox geometry · Google elevation · live data</span>
+          </button>
+          <button
+            className={routeMode === "demo" ? "active" : ""}
+            onClick={() => setRouteMode("demo")}
+          >
+            {SYNTHETIC_MODE_LABEL}
+            <span>{SYNTHETIC_MODE_SUBLABEL}</span>
+          </button>
+        </section>
+      )}
+
+      {/* Primary surface: the real accessible route. The synthetic component is
+          only mounted (and only its chunk fetched) when the dev flag is on. */}
+      {showSynthetic ? (
+        <Suspense fallback={<div className="route-state state-loading">Loading demo…</div>}>
+          <RoutePlanner />
+        </Suspense>
+      ) : (
+        <RealRoutePlanner />
+      )}
+
+      {/* Voice alerts: only real mode emits route voice triggers. */}
+      <VoiceAlerts />
+
       <section className="dashboard-grid">
         <article className="card distance-card">
           <p className="card-label">Nearest obstacle</p>
@@ -172,30 +221,10 @@ function App() {
         >
           {loading ? "Generating..." : "Simulate sensor reading"}
         </button>
-
-        <p>
-          This button temporarily acts like the Raspberry Pi.
-        </p>
       </section>
 
-      <section className="mode-switch">
-        <button
-          className={routeMode === "real" ? "active" : ""}
-          onClick={() => setRouteMode("real")}
-        >
-          Real route mode
-          <span>API-derived pedestrian geometry</span>
-        </button>
-        <button
-          className={routeMode === "demo" ? "active" : ""}
-          onClick={() => setRouteMode("demo")}
-        >
-          Accessibility algorithm demo
-          <span>Synthetic A* graph — not a real Berkeley network</span>
-        </button>
-      </section>
-
-      {routeMode === "real" ? <RealRoutePlanner /> : <RoutePlanner />}
+      {/* Dev diagnostics: self-hidden unless VITE_SHOW_DIAGNOSTICS is set. */}
+      <SponsorDiagnostics />
 
       <section className="history-section">
         <div className="section-heading">

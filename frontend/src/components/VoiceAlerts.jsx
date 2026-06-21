@@ -6,6 +6,7 @@ import {
   insertByPriority,
   voiceBus,
 } from "../services/speechClient";
+import { setDiag } from "../services/diagnostics";
 import "./VoiceAlerts.css";
 
 // Isolated voice-alert UI: on/off toggle, test button, priority audio queue,
@@ -17,6 +18,12 @@ export default function VoiceAlerts() {
   const [status, setStatus] = useState("idle"); // idle | speaking | error | blocked
   const [error, setError] = useState("");
   const [queueLen, setQueueLen] = useState(0);
+  const [lastSpoken, setLastSpoken] = useState("");
+
+  // Mirror speech status to the dev diagnostics panel.
+  useEffect(() => {
+    setDiag({ speechStatus: status });
+  }, [status]);
 
   const queueRef = useRef([]);
   const playingRef = useRef(false);
@@ -63,6 +70,8 @@ export default function VoiceAlerts() {
         return pump();
       }
 
+      setLastSpoken(next.text);
+      setDiag({ lastSpoken: next.text });
       const url = URL.createObjectURL(result.blob);
       const audio = new Audio(url);
       audioRef.current = audio;
@@ -124,18 +133,21 @@ export default function VoiceAlerts() {
     });
   }
 
+  // Presentation UI: a compact toggle, speaker icon, and a subtle Test action.
+  // Technical state (queue length, speech status, dedupe, endpoint errors, alert
+  // ids) is intentionally NOT rendered -- it goes to the backend terminal logs.
+  // Only genuine, user-actionable failures surface as text.
   return (
     <section className="voice-alerts">
       <div className="voice-row">
         <label className="voice-toggle">
           <input type="checkbox" checked={enabled} onChange={toggle} />
+          <span className="voice-icon" aria-hidden="true">🔊</span>
           Voice alerts
         </label>
         <button type="button" className="voice-test" onClick={testVoice}>
           Test voice
         </button>
-        {queueLen > 0 && <span className="voice-queue">{queueLen} queued</span>}
-        {status === "speaking" && <span className="voice-status">Speaking…</span>}
       </div>
       {status === "blocked" && (
         <div className="voice-banner">

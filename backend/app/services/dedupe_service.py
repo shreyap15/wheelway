@@ -1,8 +1,10 @@
 """Pluggable deduplication interface for voice alerts.
 
-Default is an in-process TTL implementation. The signature mirrors a future
-Redis-backed ``claim_dedupe_key(key, ttl_seconds)`` so /speak can be switched to
-Redis later WITHOUT any endpoint change -- just call ``set_dedupe(redis_impl)``.
+Default delegates to the shared state-store abstraction
+(``state_store.claim_dedupe_key``) so dedupe is Redis-backed when Redis is
+connected and memory-backed otherwise -- through the SAME abstraction, without
+the speech service importing the raw Redis client. Still injectable
+(``set_dedupe``) for isolated testing.
 """
 
 from __future__ import annotations
@@ -36,7 +38,17 @@ class InMemoryDedupe:
             return True
 
 
-_dedupe: Dedupe = InMemoryDedupe()
+class StateStoreDedupe:
+    """Dedupe via the shared state store (Redis when connected, else memory)."""
+
+    def claim_dedupe_key(self, key: str, ttl_seconds: int) -> bool:
+        from app.services import state_store  # lazy: avoid import cycles
+
+        return state_store.claim_dedupe_key(key, ttl_seconds)
+
+
+# Default to the shared abstraction so /speak dedupe matches route-alert dedupe.
+_dedupe: Dedupe = StateStoreDedupe()
 
 
 def get_dedupe() -> Dedupe:
@@ -51,4 +63,4 @@ def set_dedupe(impl: Dedupe) -> None:
 
 def reset_dedupe() -> None:
     global _dedupe
-    _dedupe = InMemoryDedupe()
+    _dedupe = StateStoreDedupe()

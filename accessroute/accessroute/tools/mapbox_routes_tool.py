@@ -25,11 +25,19 @@ def _normalize_profile(travel_mode: str | None) -> str:
     return PROFILE_ALIASES.get((travel_mode or "walking").upper(), "walking")
 
 
+def _format_pt(p: LatLng) -> str:
+    return f"{p.lng:.7f},{p.lat:.7f}"
+
+
 def _coordinates_param(origin: LatLng, destination: LatLng) -> str:
-    return (
-        f"{origin.lng:.7f},{origin.lat:.7f};"
-        f"{destination.lng:.7f},{destination.lat:.7f}"
-    )
+    return f"{_format_pt(origin)};{_format_pt(destination)}"
+
+
+def _coordinates_param_via(
+    origin: LatLng, waypoints: list[LatLng], destination: LatLng
+) -> str:
+    pts = [origin, *waypoints, destination]
+    return ";".join(_format_pt(p) for p in pts)
 
 
 def _parse_mapbox_routes(payload: dict, travel_mode: str) -> list[RouteCandidate]:
@@ -48,8 +56,20 @@ def _parse_mapbox_routes(payload: dict, travel_mode: str) -> list[RouteCandidate
         duration_seconds = float(route.get("duration") or 0.0)
 
         num_steps = 0
+        steps: list[dict] = []
         for leg in route.get("legs") or []:
-            num_steps += len(leg.get("steps") or [])
+            for step in leg.get("steps") or []:
+                num_steps += 1
+                maneuver = step.get("maneuver") or {}
+                steps.append(
+                    {
+                        "name": step.get("name") or "",
+                        "instruction": maneuver.get("instruction") or "",
+                        # [lng, lat] of the maneuver point (GeoJSON order).
+                        "location": maneuver.get("location"),
+                        "geometry": step.get("geometry"),
+                    }
+                )
 
         candidates.append(
             RouteCandidate(
@@ -59,6 +79,7 @@ def _parse_mapbox_routes(payload: dict, travel_mode: str) -> list[RouteCandidate
                 duration_seconds=duration_seconds,
                 num_steps=num_steps,
                 travel_mode=travel_mode,
+                steps=steps,
             )
         )
 
@@ -111,3 +132,49 @@ def compute_mapbox_routes(
         raise ServiceDegraded("Mapbox Directions returned no usable route geometry")
 
     return candidates
+
+
+def compute_mapbox_route_via(
+    origin: LatLng,
+    waypoints: list[LatLng],
+    destination: LatLng,
+    *,
+    access_token: str,
+    travel_mode: str = "WALK",
+    timeout: int = 8,
+) -> list[RouteCandidate]:
+    """Fetch ONE real walking route forced through intermediate waypoint(s).
+
+    Mapbox snaps each via point to the nearest routable pedestrian location and
+    returns exact network geometry (NO fabrication). Used for controlled
+    alternative discovery when Mapbox returns too few distinct routes.
+    Alternatives are off for via-routes (Mapbox returns a single route).
+
+    Raises ServiceDegraded on transport/API failure so the caller can skip the
+    candidate gracefully without blocking the primary route.
+    """
+    if not access_token:
+        raise ServiceDegraded("MAPBOX_ACCESS_TOKEN is not configured")
+
+    profile = _normalize_profile(travel_mode)
+    url = (
+        f"{MAPBOX_BASE_URL}/directions/v5/mapbox/{profile}/"
+        f"{_coordinates_param_via(origin, waypoints, destination)}"
+    )
+    params = {
+        "access_token": access_token,
+        "geometries": "geojson",
+        "overview": "full",
+        "steps": "true",
+        "alternatives": "false",
+    }
+    resp = request_with_retry("GET", url, params=params, timeout=timeout)
+    if not resp.ok:
+        raise ServiceDegraded(
+            f"Mapbox Directions (via) HTTP {resp.status_code}: {resp.text[:200]}"
+        )
+    payload = resp.json()
+    if payload.get("code") not in (None, "Ok"):
+        message = payload.get("message") or payload.get("code") or "unknown Mapbox error"
+        raise ServiceDegraded(f"Mapbox Directions (via) failed: {message}")
+    return _parse_mapbox_routes(payload, travel_mode=travel_mode)

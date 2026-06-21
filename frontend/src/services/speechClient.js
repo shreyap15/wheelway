@@ -79,6 +79,16 @@ export function deriveVoiceAlerts(route) {
   return alerts;
 }
 
+// Map a backend alert dict (shared contract) to a voice queue item.
+export function backendAlertToVoice(alert) {
+  return {
+    type: alert.type,
+    priority: alert.priority || "info",
+    text: alert.text,
+    dedupe_key: alert.dedupe_key,
+  };
+}
+
 // Reroute notice trigger (explicit).
 export function makeRerouteAlert(sessionId) {
   return {

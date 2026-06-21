@@ -23,8 +23,13 @@ def client():
 
 @pytest.fixture(autouse=True)
 def _reset(monkeypatch):
+    from app.services import state_store
+
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    state_store.reset_store()
     reset_dedupe()
     yield
+    state_store.reset_store()
     reset_dedupe()
 
 

@@ -10,6 +10,8 @@ Errors (JSON): 400 invalid request · 409 duplicate suppressed ·
 
 from __future__ import annotations
 
+import logging
+
 from flask import Blueprint, Response, jsonify, request
 from pydantic import ValidationError
 
@@ -18,6 +20,7 @@ from app.services import deepgram_service
 from app.services.dedupe_service import get_dedupe
 
 speech_bp = Blueprint("speech", __name__)
+logger = logging.getLogger("wheelway.speech")
 
 # How long a dedupe_key suppresses repeats server-side.
 DEDUPE_TTL_SECONDS = 30
@@ -41,8 +44,12 @@ def speak():
             400,
         )
 
+    # Alert text is user-facing; log only priority + type (never the text/keys).
+    logger.info("[speech] requested priority=%s type=%s", req.priority, req.type)
+
     # Configuration check before any dedupe claim (so 503 is deterministic).
     if not deepgram_service.deepgram_configured():
+        logger.warning("[speech] not_configured priority=%s", req.priority)
         return (
             jsonify(
                 {
@@ -56,6 +63,7 @@ def speak():
     # Optional dedupe: skip if this key was spoken within its TTL.
     if req.dedupe_key:
         if not get_dedupe().claim_dedupe_key(req.dedupe_key, DEDUPE_TTL_SECONDS):
+            logger.info("[speech] duplicate_suppressed key=%s", req.dedupe_key)
             return (
                 jsonify({"error": "duplicate_suppressed", "dedupe_key": req.dedupe_key}),
                 409,
@@ -64,10 +72,13 @@ def speak():
     try:
         audio = deepgram_service.synthesize(req.text, model=req.model)
     except deepgram_service.DeepgramNotConfigured:
+        logger.warning("[speech] not_configured priority=%s", req.priority)
         return jsonify({"error": "deepgram_not_configured"}), 503
     except deepgram_service.DeepgramSynthesisError as exc:
+        logger.warning("[speech] failed priority=%s error=%s", req.priority, type(exc).__name__)
         return jsonify({"error": "synthesis_failed", "message": str(exc)}), 502
 
+    logger.info("[speech] success priority=%s", req.priority)
     resp = Response(audio, mimetype=deepgram_service.AUDIO_MIME)
     resp.headers["X-Alert-Priority"] = req.priority
     resp.headers["Cache-Control"] = "no-store"

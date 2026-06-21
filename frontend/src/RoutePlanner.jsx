@@ -8,6 +8,11 @@ import {
   NODES,
   nodeLngLat,
 } from "./graphNodes";
+import {
+  SYNTHETIC_MODE_LABEL,
+  SYNTHETIC_MODE_SUBLABEL,
+  SYNTHETIC_MODE_NOTE,
+} from "./syntheticMode";
 
 const API_URL = "http://127.0.0.1:5000";
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -249,13 +254,19 @@ export default function RoutePlanner() {
     <section className="route-section">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Accessibility algorithm demo · synthetic A*</p>
+          <p className="eyebrow">{SYNTHETIC_MODE_LABEL}</p>
           <h2>Plan a route</h2>
-          <p className="muted">
-            Synthetic graph for the personalized A* scoring/avoidance prototype —
-            NOT a real Berkeley pedestrian network. Coordinates are hand-mocked.
-          </p>
+          <p className="muted">{SYNTHETIC_MODE_SUBLABEL}. Coordinates are hand-mocked.</p>
         </div>
+      </div>
+
+      <div className="synthetic-note">
+        <strong>What is real vs. simulated in this demo</strong>
+        <ul>
+          {SYNTHETIC_MODE_NOTE.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
       </div>
 
       <div className="route-layout">

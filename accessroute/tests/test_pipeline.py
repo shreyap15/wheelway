@@ -24,6 +24,18 @@ def _run(coro):
     return asyncio.run(coro)
 
 
+@pytest.fixture(autouse=True)
+def _no_live_overpass(monkeypatch):
+    """Never hit the live Overpass API from pipeline tests."""
+    monkeypatch.setattr(
+        pipeline.stairs_tool,
+        "query_overpass_stairs",
+        lambda *a, **k: ([], False, "connection_error"),
+    )
+    # Default: no live Mapbox via-calls during discovery (tests override).
+    monkeypatch.setattr(pipeline, "compute_mapbox_route_via", lambda *a, **k: [])
+
+
 ORIGIN = LatLng(lat=37.8715, lng=-122.2595)
 DEST = LatLng(lat=37.8756, lng=-122.2588)
 
