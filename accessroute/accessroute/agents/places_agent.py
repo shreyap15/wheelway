@@ -25,7 +25,8 @@ places_agent = Agent(
 @places_agent.on_event("startup")
 async def on_startup(ctx: Context):
     """Log the agent's address on startup."""
-    ctx.logger.info(f"Places agent started at address: {ctx.address}")
+    addr = getattr(ctx, "address", None) or places_agent.address
+    ctx.logger.info(f"Places agent started at address: {addr}")
 
 
 @places_agent.on_message(model=AccessibilityCheckRequest)
@@ -36,11 +37,22 @@ async def handle_accessibility_request(ctx: Context, sender: str, msg: Accessibi
     2. Reply to the sender (orchestrator) with AccessibilityVerdict.
     3. On ServiceDegraded, reply with service_degraded=True and a warning.
     """
-    verdict = check_destination_accessibility(
-        msg.destination,
-        api_key=GOOGLE_MAPS_API_KEY,
-        radius_meters=msg.radius_meters,
-    )
+    try:
+        verdict = check_destination_accessibility(
+            msg.destination,
+            api_key=GOOGLE_MAPS_API_KEY,
+            radius_meters=msg.radius_meters,
+        )
+    except Exception as exc:
+        ctx.logger.warning(f"Places tool error for session {msg.session_id}: {exc}")
+        verdict = AccessibilityVerdict(
+            session_id="",
+            place_id=None,
+            display_name=None,
+            wheelchair_entrance=None,
+            warning=f"Accessibility check failed: {exc}",
+            service_degraded=True,
+        )
 
     # Tool returns session_id="" ; fill with the real session_id from request
     verdict_with_session = AccessibilityVerdict(

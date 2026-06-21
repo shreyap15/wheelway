@@ -26,7 +26,8 @@ elevation_agent = Agent(
 @elevation_agent.on_event("startup")
 async def on_startup(ctx: Context):
     """Log the agent's address on startup."""
-    ctx.logger.info(f"Elevation agent started at address: {ctx.address}")
+    addr = getattr(ctx, "address", None) or elevation_agent.address
+    ctx.logger.info(f"Elevation agent started at address: {addr}")
 
 
 @elevation_agent.on_message(model=ElevationCheckRequest)

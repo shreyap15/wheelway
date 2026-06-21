@@ -26,7 +26,8 @@ route_agent = Agent(
 @route_agent.on_event("startup")
 async def on_startup(ctx: Context):
     """Log the agent's address on startup."""
-    ctx.logger.info(f"Route agent started at address: {ctx.address}")
+    addr = getattr(ctx, "address", None) or route_agent.address
+    ctx.logger.info(f"Route agent started at address: {addr}")
 
 
 @route_agent.on_message(model=RouteEvaluationRequest)

@@ -90,6 +90,8 @@ def sample_elevations(
     """
     total_samples = compute_sample_count(total_distance_meters)
 
+    from accessroute.common.http import ServiceDegraded
+
     # If total_samples <= 512, single request
     if total_samples <= 512:
         url = "https://maps.googleapis.com/maps/api/elevation/json"
@@ -99,7 +101,10 @@ def sample_elevations(
             "key": api_key,
         }
         resp = request_with_retry("GET", url, params=params)
-        resp.raise_for_status()
+        if not resp.ok:
+            raise ServiceDegraded(
+                f"Elevation API HTTP {resp.status_code}: {resp.text[:200]}"
+            )
         data = resp.json()
         return _parse_elevation_response(data)
 
@@ -132,7 +137,10 @@ def sample_elevations(
             "key": api_key,
         }
         resp = request_with_retry("GET", url, params=params)
-        resp.raise_for_status()
+        if not resp.ok:
+            raise ServiceDegraded(
+                f"Elevation API HTTP {resp.status_code}: {resp.text[:200]}"
+            )
         data = resp.json()
         chunk_results = _parse_elevation_response(data)
         all_results.extend(chunk_results)

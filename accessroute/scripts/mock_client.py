@@ -9,6 +9,12 @@ Usage:
 Requires the bureau to be running (python -m accessroute.bureau_main).
 """
 
+import os
+import sys
+
+# Ensure accessroute package is importable when running from project root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from uagents import Agent, Context
 
 from accessroute.addresses import ORCHESTRATOR_ADDRESS
@@ -44,16 +50,23 @@ async def send_request(ctx: Context):
 
     ctx.logger.info(f"Sending RouteEvaluationRequest to orchestrator at {ORCHESTRATOR_ADDRESS}")
 
-    # Stub: the actual send_and_receive call
-    # reply, status = await ctx.send_and_receive(
-    #     ORCHESTRATOR_ADDRESS,
-    #     request,
-    #     response_type=FinalRoute,
-    # )
-    # ctx.logger.info(f"Received FinalRoute: {reply}")
-    raise NotImplementedError(
-        "mock_client send logic: uncomment send_and_receive once orchestrator is implemented"
+    reply, status = await ctx.send_and_receive(
+        ORCHESTRATOR_ADDRESS,
+        request,
+        response_type=FinalRoute,
     )
+
+    if isinstance(reply, FinalRoute):
+        ctx.logger.info("=== FINAL ROUTE RESPONSE ===")
+        ctx.logger.info(f"Success: {reply.success}")
+        ctx.logger.info(f"Route index: {reply.chosen_route_index}")
+        ctx.logger.info(f"Distance: {reply.total_distance_meters}m")
+        ctx.logger.info(f"Travel mode: {reply.travel_mode}")
+        ctx.logger.info(f"Service degraded: {reply.service_degraded}")
+        ctx.logger.info(f"Warnings: {reply.warnings}")
+        ctx.logger.info(f"Directions:\n{reply.directions_prose}")
+    else:
+        ctx.logger.error(f"No FinalRoute received, status={status}")
 
 
 @client.on_message(model=FinalRoute)

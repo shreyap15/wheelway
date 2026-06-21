@@ -173,7 +173,7 @@ def compute_routes(
     Returns:
         A list of RouteCandidate objects.
     """
-    from accessroute.common.http import request_with_retry
+    from accessroute.common.http import request_with_retry, ServiceDegraded
 
     url = "https://routes.googleapis.com/directions/v2:computeRoutes"
 
@@ -191,7 +191,11 @@ def compute_routes(
     )
 
     resp = request_with_retry("POST", url, headers=headers, json=body)
-    resp.raise_for_status()
+
+    if not resp.ok:
+        raise ServiceDegraded(
+            f"Routes API HTTP {resp.status_code}: {resp.text[:200]}"
+        )
 
     data = resp.json()
     return _parse_routes_response(data, travel_mode)

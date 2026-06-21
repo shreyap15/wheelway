@@ -161,7 +161,10 @@ def check_destination_accessibility(
 
     try:
         resp = request_with_retry("POST", url, headers=headers, json=body)
-        resp.raise_for_status()
+        if not resp.ok:
+            raise ServiceDegraded(
+                f"Places API HTTP {resp.status_code}: {resp.text[:200]}"
+            )
         data = resp.json()
         return _parse_places_response(data)
     except ServiceDegraded:

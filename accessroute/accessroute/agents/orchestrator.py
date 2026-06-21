@@ -51,7 +51,8 @@ orchestrator = Agent(
 @orchestrator.on_event("startup")
 async def on_startup(ctx: Context):
     """Log the orchestrator's address on startup."""
-    ctx.logger.info(f"Orchestrator started at address: {ctx.address}")
+    addr = getattr(ctx, "address", None) or orchestrator.address
+    ctx.logger.info(f"Orchestrator started at address: {addr}")
 
 
 # ---------------------------------------------------------------------------
