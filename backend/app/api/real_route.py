@@ -57,10 +57,18 @@ class Coordinate(BaseModel):
 
 
 class RealRouteProfile(BaseModel):
+    """Canonical real-route mobility profile. Older payloads omitting newer
+    fields keep working via defaults. Out-of-range values -> structured 400."""
+
     wheelchair_type: str = "manual"
     avoid_stairs: bool = True
+    # Separate accessibility preference; NOT coupled to avoid_stairs. Optional so
+    # older payloads (which omit it) keep working with the safe default.
+    requires_curb_ramps: bool = True
     max_slope_pct: float = Field(8.33, gt=0, le=45)
+    max_cross_slope_pct: float = Field(2.0, gt=0, le=45)
     min_width_m: float = Field(0.91, gt=0, le=10)
+    surface_sensitivity: float = Field(0.5, ge=0, le=1)
 
 
 class RealRouteRequest(BaseModel):
@@ -151,13 +159,18 @@ def real_route():
     origin = LatLng(lat=req.origin.latitude, lng=req.origin.longitude)
     destination = LatLng(lat=req.destination.latitude, lng=req.destination.longitude)
 
-    # Map the frontend profile onto the accessroute WheelchairProfile.
+    # Map the frontend profile onto the accessroute WheelchairProfile. avoid_stairs
+    # and requires_curb_ramps are passed through INDEPENDENTLY -- neither is
+    # derived from the other.
     profile = WheelchairProfile(
         device_type=req.profile.wheelchair_type,
         max_incline_grade=req.profile.max_slope_pct,
         max_decline_grade=max(req.profile.max_slope_pct, 10.0),
         max_width_cm=int(req.profile.min_width_m * 100),
-        requires_curb_ramps=req.profile.avoid_stairs,
+        avoid_stairs=req.profile.avoid_stairs,
+        requires_curb_ramps=req.profile.requires_curb_ramps,
+        max_cross_slope_pct=req.profile.max_cross_slope_pct,
+        surface_sensitivity=req.profile.surface_sensitivity,
     )
 
     try:
