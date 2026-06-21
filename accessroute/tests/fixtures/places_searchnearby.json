@@ -1,0 +1,18 @@
+{
+  "places": [
+    {
+      "id": "ChIJ-c6VjKd-hYARjg3VRhsFJOc",
+      "displayName": {
+        "text": "Doe Memorial Library",
+        "languageCode": "en"
+      },
+      "location": {
+        "latitude": 37.8724,
+        "longitude": -122.2594
+      },
+      "accessibilityOptions": {
+        "wheelchairAccessibleEntrance": true
+      }
+    }
+  ]
+}

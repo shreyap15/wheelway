@@ -1,0 +1,72 @@
+{
+  "routes": [
+    {
+      "distanceMeters": 523,
+      "duration": "394s",
+      "polyline": {
+        "encodedPolyline": "g`_eFn~njVsB{@eBq@cAa@w@Y"
+      },
+      "legs": [
+        {
+          "steps": [
+            {
+              "distanceMeters": 150,
+              "staticDuration": "113s",
+              "polyline": {"encodedPolyline": "g`_eFn~njVsB{@"},
+              "startLocation": {"latLng": {"latitude": 37.8715, "longitude": -122.2595}},
+              "endLocation": {"latLng": {"latitude": 37.8730, "longitude": -122.2590}}
+            },
+            {
+              "distanceMeters": 200,
+              "staticDuration": "150s",
+              "polyline": {"encodedPolyline": "eBq@cAa@"},
+              "startLocation": {"latLng": {"latitude": 37.8730, "longitude": -122.2590}},
+              "endLocation": {"latLng": {"latitude": 37.8745, "longitude": -122.2588}}
+            },
+            {
+              "distanceMeters": 173,
+              "staticDuration": "131s",
+              "polyline": {"encodedPolyline": "w@Y"},
+              "startLocation": {"latLng": {"latitude": 37.8745, "longitude": -122.2588}},
+              "endLocation": {"latLng": {"latitude": 37.8756, "longitude": -122.2588}}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "distanceMeters": 612,
+      "duration": "468s",
+      "polyline": {
+        "encodedPolyline": "g`_eFn~njVw@kAcBsAeBq@gA]"
+      },
+      "legs": [
+        {
+          "steps": [
+            {
+              "distanceMeters": 180,
+              "staticDuration": "135s",
+              "polyline": {"encodedPolyline": "g`_eFn~njVw@kA"},
+              "startLocation": {"latLng": {"latitude": 37.8715, "longitude": -122.2595}},
+              "endLocation": {"latLng": {"latitude": 37.8722, "longitude": -122.2582}}
+            },
+            {
+              "distanceMeters": 250,
+              "staticDuration": "192s",
+              "polyline": {"encodedPolyline": "cBsAeBq@"},
+              "startLocation": {"latLng": {"latitude": 37.8722, "longitude": -122.2582}},
+              "endLocation": {"latLng": {"latitude": 37.8742, "longitude": -122.2585}}
+            },
+            {
+              "distanceMeters": 182,
+              "staticDuration": "141s",
+              "polyline": {"encodedPolyline": "gA]"},
+              "startLocation": {"latLng": {"latitude": 37.8742, "longitude": -122.2585}},
+              "endLocation": {"latLng": {"latitude": 37.8756, "longitude": -122.2588}}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

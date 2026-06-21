@@ -1,0 +1,6 @@
+uagents==0.25.2
+requests>=2.31
+polyline==2.0.4
+tenacity>=8.2
+python-dotenv>=1.0
+pytest>=8.0

@@ -1,0 +1,30 @@
+{
+  "results": [
+    {
+      "elevation": 48.32,
+      "location": {"lat": 37.87150, "lng": -122.25950},
+      "resolution": 4.771975994110107
+    },
+    {
+      "elevation": 50.15,
+      "location": {"lat": 37.87250, "lng": -122.25920},
+      "resolution": 4.771975994110107
+    },
+    {
+      "elevation": 53.88,
+      "location": {"lat": 37.87350, "lng": -122.25900},
+      "resolution": 4.771975994110107
+    },
+    {
+      "elevation": 55.42,
+      "location": {"lat": 37.87450, "lng": -122.25885},
+      "resolution": 4.771975994110107
+    },
+    {
+      "elevation": 56.10,
+      "location": {"lat": 37.87560, "lng": -122.25880},
+      "resolution": 4.771975994110107
+    }
+  ],
+  "status": "OK"
+}
