@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: accessroute-orchestrator
+    runtime: docker
+    plan: free
+    region: oregon
+    rootDir: accessroute
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /agent_info
+    envVars:
+      - key: AGENTVERSE_NAME
+        value: accessroute-orchestrator
+      - key: MAPBOX_ACCESS_TOKEN
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: ASI_ONE_API_KEY
+        sync: false
+      - key: DEMO_MAX_INCLINE_GRADE
+        value: "25.0"
+      - key: DEMO_MAX_DECLINE_GRADE
+        value: "25.0"

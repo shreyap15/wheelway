@@ -110,6 +110,15 @@ async def on_startup(ctx: Context):
     """Log the orchestrator's address on startup."""
     addr = getattr(ctx, "address", None) or orchestrator.address
     ctx.logger.info(f"Orchestrator started at address: {addr}")
+    try:
+        from accessroute.deploy_config import get_deploy_settings
+
+        settings = get_deploy_settings()
+        if settings.submit_endpoint:
+            ctx.logger.info("Agentverse endpoint URL: %s", settings.submit_endpoint)
+            ctx.logger.info("Agentverse agent name: %s", settings.agentverse_name)
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------
