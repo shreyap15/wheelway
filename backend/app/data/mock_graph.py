@@ -32,6 +32,7 @@ BASE_LON = -122.2585
 # ~0.00072 deg lat ~= 80m; lon spacing adjusted for latitude
 LAT_STEP = 0.00072
 LON_STEP = 0.00091
+SIDEWALK_JOG = 0.00004
 
 
 def build_mock_graph() -> AccessibilityGraph:
@@ -48,13 +49,39 @@ def build_mock_graph() -> AccessibilityGraph:
                     node_id=node_id,
                     lat=BASE_LAT - r_idx * LAT_STEP,
                     lon=BASE_LON + c_idx * LON_STEP,
+                    elevation_m=52.0 + c_idx * 0.35 - r_idx * 0.22,
                     name=f"Intersection {node_id}",
                 )
             )
 
+    def segment_geometry(n1, n2):
+        start = graph.get_node(n1)
+        end = graph.get_node(n2)
+        if start is None or end is None:
+            raise ValueError(f"Missing node for segment geometry: {n1}->{n2}")
+
+        mid_lat = (start.lat + end.lat) / 2
+        mid_lon = (start.lon + end.lon) / 2
+        mid_elevation = ((start.elevation_m or 0) + (end.elevation_m or 0)) / 2
+
+        if abs(start.lat - end.lat) > abs(start.lon - end.lon):
+            mid_lon += SIDEWALK_JOG
+        else:
+            mid_lat += SIDEWALK_JOG
+
+        return {
+            "type": "LineString",
+            "coordinates": [
+                (start.lon, start.lat, start.elevation_m or 0),
+                (mid_lon, mid_lat, mid_elevation + 0.08),
+                (end.lon, end.lat, end.elevation_m or 0),
+            ],
+        }
+
     def seg(seg_id, n1, n2, **kwargs):
         defaults = dict(
             length_m=80.0,
+            geometry=segment_geometry(n1, n2),
             slope=2.0,
             cross_slope=1.0,
             width=1.52,

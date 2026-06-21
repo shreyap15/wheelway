@@ -13,7 +13,7 @@ References used to set thresholds (see scoring/constants.py for citations):
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -52,6 +52,28 @@ class WheelchairType(str, Enum):
     WALKER = "walker"
 
 
+class RouteGeometry(BaseModel):
+    type: Literal["LineString"] = "LineString"
+    coordinates: list[tuple[float, float] | tuple[float, float, float]]
+
+    @field_validator("coordinates")
+    @classmethod
+    def enough_points_for_linestring(
+        cls, coordinates: list[tuple[float, float] | tuple[float, float, float]]
+    ) -> list[tuple[float, float] | tuple[float, float, float]]:
+        if len(coordinates) < 2:
+            raise ValueError("LineString geometry requires at least two coordinates")
+        return coordinates
+
+
+class SurfaceSample(BaseModel):
+    longitude: float
+    latitude: float
+    elevation_m: float
+    surface_offset_m: float = 0.0
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+
+
 class Segment(BaseModel):
     """
     A single traversable edge in the accessibility graph (e.g. one block of
@@ -65,6 +87,9 @@ class Segment(BaseModel):
     length_m: float = Field(..., gt=0, description="Segment length in meters")
 
     # --- Physical geometry ---
+    geometry: RouteGeometry
+    surface_samples: list[SurfaceSample] = Field(default_factory=list)
+
     slope: float = Field(
         0.0,
         description="Running slope (grade) as a percentage, e.g. 4.2 = 4.2%. "

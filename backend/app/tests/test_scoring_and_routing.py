@@ -29,6 +29,14 @@ def make_segment(**overrides) -> Segment:
         start_node_id="n1",
         end_node_id="n2",
         length_m=50.0,
+        geometry={
+            "type": "LineString",
+            "coordinates": [
+                (-122.2585, 37.8719, 52.0),
+                (-122.25845, 37.87154, 52.08),
+                (-122.2585, 37.87118, 52.16),
+            ],
+        },
         slope=2.0,
         cross_slope=1.0,
         width=1.52,
@@ -156,6 +164,27 @@ def test_simple_two_node_route():
     assert result.found
     assert len(result.steps) == 1
     assert result.total_distance_m == 50.0
+    assert result.steps[0].segment.geometry.coordinates == [
+        (-122.2585, 37.8719, 52.0),
+        (-122.25845, 37.87154, 52.08),
+        (-122.2585, 37.87118, 52.16),
+    ]
+
+
+def test_bidirectional_edges_reverse_full_linestring_geometry():
+    graph = AccessibilityGraph()
+    graph.add_node(Node("n1", 37.8719, -122.2585))
+    graph.add_node(Node("n2", 37.87118, -122.2585))
+    graph.add_segment(make_segment(segment_id="e1", start_node_id="n1", end_node_id="n2"))
+
+    reversed_segment = graph.get_segment("e1_rev")
+
+    assert reversed_segment is not None
+    assert reversed_segment.geometry.coordinates == [
+        (-122.2585, 37.87118, 52.16),
+        (-122.25845, 37.87154, 52.08),
+        (-122.2585, 37.8719, 52.0),
+    ]
 
 
 def test_router_avoids_stairs_on_mock_graph():
