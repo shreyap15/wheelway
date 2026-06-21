@@ -1,0 +1,3 @@
+[submodule "hardware/vision_modal"]
+	path = hardware/vision_modal
+	url = https://github.com/gurnoorssandhu/vision_modal.git
