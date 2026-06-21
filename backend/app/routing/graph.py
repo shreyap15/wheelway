@@ -61,6 +61,12 @@ class AccessibilityGraph:
                     "start_node_id": segment.end_node_id,
                     "end_node_id": segment.start_node_id,
                     "slope": -segment.slope,
+                    "geometry": segment.geometry.model_copy(
+                        update={
+                            "coordinates": list(reversed(segment.geometry.coordinates)),
+                        }
+                    ),
+                    "surface_samples": list(reversed(segment.surface_samples)),
                 }
             )
             self._segments_by_id[reversed_segment.segment_id] = reversed_segment
@@ -75,6 +81,14 @@ class AccessibilityGraph:
     def get_node(self, node_id: str) -> Optional[Node]:
         return self.nodes.get(node_id)
 
+    def _replace_segment(self, segment_id: str, updated: Segment) -> None:
+        self._segments_by_id[segment_id] = updated
+        for node_id in (updated.start_node_id, updated.end_node_id):
+            adj = self._adjacency.get(node_id, [])
+            for i, (neighbor, seg) in enumerate(adj):
+                if seg.segment_id == segment_id:
+                    adj[i] = (neighbor, updated)
+
     def update_segment(self, segment_id: str, **updates) -> None:
         """
         Used by the CV/real-time pipeline to push live updates (e.g. a newly
@@ -84,13 +98,28 @@ class AccessibilityGraph:
         if existing is None:
             return
         updated = existing.model_copy(update=updates)
-        self._segments_by_id[segment_id] = updated
-        # also patch the adjacency list entries in place
-        for node_id in (updated.start_node_id, updated.end_node_id):
-            adj = self._adjacency.get(node_id, [])
-            for i, (neighbor, seg) in enumerate(adj):
-                if seg.segment_id == segment_id:
-                    adj[i] = (neighbor, updated)
+        self._replace_segment(segment_id, updated)
+
+        reverse_id = (
+            segment_id[:-4] if segment_id.endswith("_rev") else segment_id + "_rev"
+        )
+        reverse = self._segments_by_id.get(reverse_id)
+        if reverse is None:
+            return
+
+        reverse_updates = dict(updates)
+        if "slope" in reverse_updates:
+            reverse_updates["slope"] = -reverse_updates["slope"]
+        if "geometry" in reverse_updates:
+            reverse_updates["geometry"] = reverse_updates["geometry"].model_copy(
+                update={
+                    "coordinates": list(reversed(reverse_updates["geometry"].coordinates)),
+                }
+            )
+        if "surface_samples" in reverse_updates:
+            reverse_updates["surface_samples"] = list(reversed(reverse_updates["surface_samples"]))
+
+        self._replace_segment(reverse_id, reverse.model_copy(update=reverse_updates))
 
     def __len__(self) -> int:
         return len(self._segments_by_id)
